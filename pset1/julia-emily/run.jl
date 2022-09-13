@@ -5,6 +5,7 @@ using Distributed
 
 prim, res = Initialize() #initialize primitive and results structs
 runtime = @elapsed Solve_model(prim, res) #solve the model and save time 
+fruntime = @elapsed run_in_fortran()
 
 addprocs(5) 
 runtime_par = @elapsed Solve_model(prim, res) #solve the model and save time 
@@ -17,6 +18,7 @@ runtime_par = @elapsed Solve_model(prim, res) #solve the model and save time
 figpath = joinpath(pwd(), "pset1/julia-emily/figures")
 write(joinpath(figpath, "julia_runtime.tex"), string(runtime))
 write(joinpath(figpath, "julia_runtime_parallel.tex"), string(runtime_par))
+write(joinpath(figpath, "fortran_runtime.tex"), string(fruntime))
 #value function
 plot(k_grid, val_func[:,1], title="Value Functions", xlabel = "K", ylabel = "V(K,Z)", label = "Zg", lw = 2)
 plot!(k_grid, val_func[:,2], label = "Zb", lw = 2)
