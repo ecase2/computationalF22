@@ -73,10 +73,3 @@ end
 @everywhere function Solve_model(prim::Primitives, res::Results)
     V_iterate(prim, res) #in this case, all we have to do is the value function iteration!
 end
-
-# this function will run the model in fortran 
-@everywhere function run_in_fortran()
-    path = joinpath(pwd(), "pset1/model.f90")
-    #run(`SHELL COMMANDS THAT COMPILE`)
-    #run(`SHELL COMMANDS THAT RUN`)
-end
