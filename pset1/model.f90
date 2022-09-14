@@ -7,6 +7,7 @@ implicit none
    INTEGER, PARAMETER 	:: length_grid_k = (kub-klb)/inc + 1
    REAL , PARAMETER 	:: toler   = 1.e-4						! Numerical tolerance
 end module
+! type, dimension(how many elements), vector ... then vector(1) = 3 vector(2) = 4
 
 ! ============================================================================================
 module global
