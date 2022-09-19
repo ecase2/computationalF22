@@ -12,9 +12,9 @@ I[10, 11, :]
 findall(x -> x == 1, I)
 
 res.distr = Distr(prim, res)
-sum(distr)
-Plots.plot(a_grid, distr[:, 1], title= "Distribution of assets", label = "Good shock")
-Plots.plot!(a_grid, distr[:, 2], title= "Distribution of assets", label = "Bad shock")
+sum(res.distr)
+Plots.plot(a_grid, res.distr[:, 1], title= "Distribution of assets", label = "Good shock")
+Plots.plot!(a_grid, res.distr[:, 2], title= "Distribution of assets", label = "Bad shock")
 
 ED = ExcessDemand(prim, res)
 
@@ -24,10 +24,9 @@ d = ClearMarket(prim, res)
 ##############Make plots
 #value function
 Plots.plot(a_grid, val_func[:, 1], title="Value Function", label = "Good shock")
-Plots.plot!(a_grid, val_func[:, 2], title="Value Function", label = "Bad shock", legend =:bottomright)
-Plots.savefig("PS2_Value_Functions.png")
+Plots.plot!(a_grid, val_func[:, 2], title="Value Function", label = "Bad shock", legend =:bottomright) 
 
-#policy functions
+#policy function 
 Plots.plot(a_grid, pol_func[:, 1], title="Policy Functions", label = "Good shock")
 Plots.plot!(a_grid, pol_func[:, 2], title="Policy Functions",  label = "Bad shock", legend =:bottomright)
 plot!(a_grid, a_grid, label = "45* line", linestyle = :dash)
