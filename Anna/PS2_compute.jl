@@ -30,6 +30,7 @@ Plots.savefig("PS2_Value_Functions.png")
 #policy functions
 Plots.plot(a_grid, pol_func[:, 1], title="Policy Functions", label = "Good shock")
 Plots.plot!(a_grid, pol_func[:, 2], title="Policy Functions",  label = "Bad shock", legend =:bottomright)
+plot!(a_grid, a_grid, label = "45* line", linestyle = :dash)
 Plots.savefig("PS2 _Policy_Functions.png")
 
 #changes in policy function

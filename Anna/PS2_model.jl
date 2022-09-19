@@ -29,7 +29,7 @@ function Initialize()
     val_func = zeros(prim.na, prim.ns) #initial value function guess
     pol_func = zeros(prim.na, prim.ns) #initial policy function guess
     distr = zeros(prim.na, prim.ns)
-    q = 0.994
+    q = 0.5
     res = Results(val_func, pol_func, distr, q) #initialize results struct
     prim, res #return deliverables
 end
@@ -150,22 +150,24 @@ function ClearMarket(prim::Primitives, res::Results; iter = 1000, tol = 0.0001)
         #I = Indicator(prim, res)
         res.distr = Distr(prim, res)
         diff = ExcessDemand(prim, res)
-        adj_step = 0.0001*res.q
+        adj_step = 0.01*res.q
         if (diff > 0 && abs(diff) > tol)
-            if abs(diff) > 0.006
-                res.q = res.q + adj_step
-            end
-            if abs(diff) <= 0.006
-                res.q = 1.001*res.q + 0.0000000001*adj_step
-            end
+            res.q = res.q + adj_step
+            # if abs(diff) > 0.006
+            #     res.q = res.q + adj_step
+            # end
+            # if abs(diff) <= 0.006
+            #     res.q = 1.001*res.q + 0.0000000001*adj_step
+            # end
         end
         if (diff < 0 && abs(diff) > tol)
-            if abs(diff) > 0.006
-                res.q = res.q - adj_step
-            end
-            if abs(diff) <= 0.006
-                res.q = res.q - 0.0000000001*adj_step
-            end
+            res.q = res.q - adj_step
+            # if abs(diff) > 0.006
+            #     res.q = res.q - adj_step
+            # end
+            # if abs(diff) <= 0.006
+            #     res.q = res.q - 0.0000000001*adj_step
+            # end
         end
          println("Iteration ", n-1, " Diff = ", diff);
     end
