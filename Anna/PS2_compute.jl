@@ -18,8 +18,20 @@ Plots.plot!(a_grid, res.distr[:, 2], title= "Distribution of assets", label = "B
 
 ED = ExcessDemand(prim, res)
 
-prim, res = Initialize() #initialize primitive and results structs
+prim, res = Initialize(0.994) #initialize primitive and results structs
+V_iterate(prim, res)
+Distr(prim, res)
+ExcessDemand(prim, res)
 d = ClearMarket(prim, res)
+
+for q = 0.7:0.05:0.9
+    prim, res = Initialize(q)
+    V_iterate(prim, res)
+    println("pol_func[1:10, 1] = ", res.pol_func[1:10, 1], "q = $q")
+    println("pol_func[1:10, 2] = ", res.pol_func[1:10, 2], "q = $q")
+end 
+
+
 
 ##############Make plots
 #value function

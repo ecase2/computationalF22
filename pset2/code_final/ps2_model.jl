@@ -201,7 +201,7 @@ function calcCE(prim::Primitives, res::Results)
     @unpack β, α, na, ns = prim #unpack model primitives
 
     # Calculate parameter value
-    θ = 1/((1-α)(1-β))
+    θ = 1/((1-α)*(1-β))
     W_FB = calcWelfareFB(prim)
 
     # Calculate consumption equivalents

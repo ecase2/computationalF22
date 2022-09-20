@@ -24,12 +24,12 @@ mutable struct Results
 end
 
 #function for initializing model primitives and results
-function Initialize()
+function Initialize(qval)
     prim = Primitives() #initialize primtiives
     val_func = zeros(prim.na, prim.ns) #initial value function guess
     pol_func = zeros(prim.na, prim.ns) #initial policy function guess
     distr = zeros(prim.na, prim.ns)
-    q = 0.994
+    q = qval 
     res = Results(val_func, pol_func, distr, q) #initialize results struct
     prim, res #return deliverables
 end
@@ -52,7 +52,7 @@ function Bellman(prim::Primitives, res::Results)
             budget = s + a #budget
             for ap_index in choice_lower:na #loop over possible selections of k', exploiting monotonicity of policy function
                 c = budget - q*a_grid[ap_index] #consumption given k' selection
-                if c>0 #check for positivity
+                if c>=0 #check for positivity
                     util = (c^(1-α)-1)/(1-α)
                     val = util + β*transpose(trans_matrix[s_index, :])*val_func[ap_index, :]   #compute value
                     if val>candidate_max #check for new max value
@@ -60,7 +60,7 @@ function Bellman(prim::Primitives, res::Results)
                         res.pol_func[a_index, s_index] = a_grid[ap_index] #update policy function
                         choice_lower = ap_index #update lowest possible choice
                     end
-                end
+                end 
             end
             v_next[a_index, s_index] = candidate_max #update value function
         end
@@ -72,14 +72,16 @@ end
 function V_iterate(prim::Primitives, res::Results; tol::Float64 = 1e-4, err::Float64 = 100.0)
     @unpack pol_func, val_func = res
     n = 0 #counter
-
+    
     while err>tol #begin iteration
         v_next, res.pol_func = Bellman(prim, res) #spit out new vectors
         err = abs.(maximum(v_next.-res.val_func))/abs(v_next[prim.na, 1]) #reset error level
         res.val_func = v_next #update value function
         n+=1
+        #println("pol_func[1:10, 1] = ", res.pol_func[1:10, 1])
     end
 #    println("Value function converged in ", n, " iterations.")
+    return pol_func 
 end
 
 #solve the model
@@ -148,40 +150,22 @@ end
 function ClearMarket(prim::Primitives, res::Results; iter = 1000, tol = 0.0001)
     @unpack val_func, q, pol_func, distr = res #unpack value function
     @unpack a_grid, β, α, ns, s_grid, trans_matrix, na = prim #unpack model primitives
-
-    diff = 100
+    V_iterate(prim, res)
+    Distr(prim, res)
+    diff = ExcessDemand(prim, res)
     n = 1
-    while (diff > tol && n < iter)
-        println("updated price = ", res.q)
+    while (abs(diff) > tol && n < iter)
+        adj_step = 0.00001
+        if abs(diff) <0.005
+            adj_step = 0.00000001
+        end 
+        res.q = res.q + adj_step
+        Initialize(res.q)
         V_iterate(prim, res)
-        println("pol_func[1:10, 1] = ", res.pol_func[1:10, 1])
-        #I = Indicator(prim, res)
         Distr(prim, res)
         diff = ExcessDemand(prim, res)
-        println("diff = ", diff)
-        adj_step = 0.0001*res.q
-        if (diff > 0 && abs(diff) > tol)
-        #    println("price = ", q)
-            if abs(diff) > 0.006
-                res.q = res.q + adj_step
-            end
-            if abs(diff) <= 0.006
-                res.q = res.q + adj_step
-            end
-            if abs(diff) <= 0.004608890667039345
-                res.q = res.q - 0.00001
-            end
-        end
-        if (diff < 0 && abs(diff) > tol)
-            if abs(diff) > 0.006
-                res.q = res.q - adj_step
-            end
-            if abs(diff) <= 0.006
-                res.q = res.q - 0.0000000001*adj_step
-            end
-        end
-         println("Iteration ", n-1, " Diff = ", diff, " under price = ", res.q);
-         n = n + 1
+        println("Iteration ", n-1, " Diff = ", diff, " under price = ", res.q);
+        n = n + 1
     end
     return diff
 
