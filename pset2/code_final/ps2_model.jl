@@ -19,7 +19,8 @@ end
 mutable struct Results
     val_func::Array{Float64, 2} # value function
     pol_func::Array{Float64, 2} # policy function
-    distr::Array{Float64, 2} # distribution
+    distr::Array{Float64, 2} # wealth distribution
+    λ::Array{Float64, 2} # consumption equivalents
     q::Float64 # price of a non state-contingent bond
 end
 
@@ -28,9 +29,10 @@ function Initialize()
     prim = Primitives() #initialize primtiives
     val_func = zeros(prim.na, prim.ns) #initial value function guess
     pol_func = zeros(prim.na, prim.ns) #initial policy function guess
-    distr = zeros(prim.na, prim.ns)
+    distr = zeros(prim.na, prim.ns) #initialize wealth distribution guess
+    λ = zeros(prim.na, prim.ns) #initialize consumption equivalents guess
     q = 0.5
-    res = Results(val_func, pol_func, distr, q) #initialize results struct
+    res = Results(val_func, pol_func, distr, λ, q) #initialize results struct
     prim, res #return deliverables
 end
 
@@ -133,6 +135,7 @@ function Distr(prim::Primitives, res::Results; iter = 1000, tol = 0.000001)
     return temp_distr
 end
 
+#Function to calculate excess demand
 function ExcessDemand(prim::Primitives, res::Results)
     @unpack val_func, q, pol_func, distr = res #unpack value function
     @unpack a_grid, β, α, ns, s_grid, trans_matrix, na = prim #unpack model primitives
@@ -141,6 +144,7 @@ function ExcessDemand(prim::Primitives, res::Results)
     return ED
 end
 
+#Function that checks market clearing and finds final price q
 function ClearMarket(prim::Primitives, res::Results; iter = 1000, tol = 0.0001)
     @unpack val_func, q, pol_func, distr = res #unpack value function
     @unpack a_grid, β, α, ns, s_grid, trans_matrix, na = prim #unpack model primitives
@@ -176,6 +180,89 @@ function ClearMarket(prim::Primitives, res::Results; iter = 1000, tol = 0.0001)
     return diff
 
 end
+
+# Calculate first-best welfare
+function calcWelfareFB(prim::Primitives)
+    @unpack β, α, s, π = prim #unpack model primitives
+
+    # Calculate the average fraction of agents who are employed
+    U_bar = π[1,2]/(1 - π[2,2] + π[1,2])
+    E_bar = 1 - U_bar 
+
+    # Calculate consumption
+    c_bar = E_bar + 0.5*(1-E_bar)
+
+    # Calculate FB welfare
+    W_FB = ((c_bar^(1-α) - 1)/(1-α))*(1/1-β)
+
+    # Return FB value
+    W_FB
+end
+
+# Finds consumption equivalents
+function calcCE(prim::Primitives, res::Results)
+    @unpack val_func, λ = res #unpack value function and consumption equivalence
+    @unpack β, α, na, ns = prim #unpack model primitives
+
+    # Calculate parameter value
+    θ = 1/((1-α)(1-β))
+    W_FB = calcWelfareFB(prim)
+
+    # Calculate consumption equivalents
+    for s_index = 1:ns
+        for a_index = 1:na
+            λ[a_index,s_index] = ((W_FB + θ)/(val_func[a_index,s_index] + θ))^(1/(1-α)) - 1
+        end
+    end
+
+    # Return λ
+    λ
+end
+
+# Calculate welfare from incomplete markets
+function calcWelfareInc(prim::Primitives, res::Results)
+    @unpack val_func, distr = res
+    @unpack na, ns = prim
+
+    # Calculate W_Inc
+    W_Inc = 0
+
+    for s_index = 1:ns
+        for a_index = 1:na
+            W_Inc = W_Inc .+ distr[a_index,s_index].*val_func[a_index,s_index]
+        end
+    end
+
+    # Return W_Inc
+    W_Inc
+end
+
+# Calculate welfare gain
+function calcWelfareGain(prim::Primitives, res::Results)
+    @unpack distr, λ = res
+    @unpack na, ns = prim
+
+     # Calculate WG
+     WG = 0
+
+     for s_index = 1:ns
+         for a_index = 1:na
+             WG = WG .+ λ[a_index,s_index].*distr[a_index,s_index]
+         end
+     end
+ 
+     # Return WG
+     WG
+end
+
+
+
+
+
+
+
+
+
 
 #######################################################################################
 ### Function to find stationary distribution when there is only one state of the world
