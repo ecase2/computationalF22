@@ -1,3 +1,6 @@
+####################
+# 0. Set up
+####################
 using Parameters, Plots, Statistics #import the libraries we want
 include("ps2_model.jl") #import the functions that solve our growth model
 
@@ -6,6 +9,10 @@ prim, res = Initialize() #initialize primitive and results structs
 @unpack val_func, pol_func, distr, q = res
 @unpack a_grid, s_grid = prim
 
+
+####################
+# 1. Question II
+####################
 I = Indicator(prim, res)
 mean(I)
 I[10, 11, :]
@@ -18,7 +25,6 @@ Plots.plot!(a_grid, distr[:, 2], title= "Distribution of assets", label = "Bad s
 
 ED = ExcessDemand(prim, res)
 
-prim, res = Initialize() #initialize primitive and results structs
 d = ClearMarket(prim, res)
 
 ##############Make plots
@@ -41,3 +47,21 @@ Plots.savefig("PS2_Policy_Functions_Changes_good.png")
 
 Plots.plot(a_grid, pol_func_δ_2, title="Policy Functions Changes. Bad shock")
 Plots.savefig("PS2_Policy_Functions_Changes_bad.png")
+
+
+####################
+# 2. Question III
+####################
+#(a) Plot λ(a,s)
+λ = calcCE(prim, res)
+
+Plots.plot(a_grid, λ[:,1], title = "Consumption equivalent", label = "Employed")
+Plots.plot!(a_grid, λ[:,2], title = "Consumption equivalent", label = "Unemployed", legend =:bottomright)
+Plots.savefig("PS2_IIIa.png")
+
+#(b) Find Welfare_FB, Welfare_Inc, and WG
+W_FB = calcWelfareFB(prim)
+W_Inc = calcWelfareInc(prim, res)
+WG = calcWG(prim, res)
+
+#(c) Find fraction of population that benefit from complete markets

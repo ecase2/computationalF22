@@ -244,7 +244,7 @@ function calcWelfareGain(prim::Primitives, res::Results)
 
      # Calculate WG
      WG = 0
-
+     
      for s_index = 1:ns
          for a_index = 1:na
              WG = WG .+ λ[a_index,s_index].*distr[a_index,s_index]
