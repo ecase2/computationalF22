@@ -21,6 +21,7 @@ mutable struct Results
     pol_func::Array{Float64, 2} # policy function
     distr::Array{Float64, 2} # distribution
     q::Float64 # price of a non state-contingent bond
+    μ::Float64 # for question I: fraction of households that are employed
 end
 
 #function for initializing model primitives and results
@@ -30,7 +31,8 @@ function Initialize()
     pol_func = zeros(prim.na, prim.ns) #initial policy function guess
     distr = zeros(prim.na, prim.ns)
     q = 0.5
-    res = Results(val_func, pol_func, distr, q) #initialize results struct
+    μ = 0.5
+    res = Results(val_func, pol_func, distr, q, μ) #initialize results struct
     prim, res #return deliverables
 end
 
