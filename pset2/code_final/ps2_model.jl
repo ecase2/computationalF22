@@ -19,8 +19,7 @@ end
 mutable struct Results
     val_func::Array{Float64, 2} # value function
     pol_func::Array{Float64, 2} # policy function
-    distr::Array{Float64, 2} # wealth distribution
-    λ::Array{Float64, 2} # consumption equivalents
+    distr::Array{Float64, 2} # distribution
     q::Float64 # price of a non state-contingent bond
 end
 
@@ -29,10 +28,9 @@ function Initialize()
     prim = Primitives() #initialize primtiives
     val_func = zeros(prim.na, prim.ns) #initial value function guess
     pol_func = zeros(prim.na, prim.ns) #initial policy function guess
-    distr = zeros(prim.na, prim.ns) #initialize wealth distribution guess
-    λ = zeros(prim.na, prim.ns) #initialize consumption equivalents guess
+    distr = zeros(prim.na, prim.ns)
     q = 0.5
-    res = Results(val_func, pol_func, distr, λ, q) #initialize results struct
+    res = Results(val_func, pol_func, distr, q) #initialize results struct
     prim, res #return deliverables
 end
 
@@ -135,7 +133,6 @@ function Distr(prim::Primitives, res::Results; iter = 1000, tol = 0.000001)
     return temp_distr
 end
 
-#Function to calculate excess demand
 function ExcessDemand(prim::Primitives, res::Results)
     @unpack val_func, q, pol_func, distr = res #unpack value function
     @unpack a_grid, β, α, ns, s_grid, trans_matrix, na = prim #unpack model primitives
@@ -144,7 +141,6 @@ function ExcessDemand(prim::Primitives, res::Results)
     return ED
 end
 
-#Function that checks market clearing and finds final price q
 function ClearMarket(prim::Primitives, res::Results; iter = 1000, tol = 0.0001)
     @unpack val_func, q, pol_func, distr = res #unpack value function
     @unpack a_grid, β, α, ns, s_grid, trans_matrix, na = prim #unpack model primitives
