@@ -3,11 +3,17 @@ include("PS2_model.jl") #import the functions that solve our growth model
 
 prim, res = Initialize(0.994) #initialize primitive and results structs
 
+### Solve the model 
+### Return net wealth
 d = ClearMarket(prim, res)
+
+### Compute the Gini coefficient
+sum_wealth, sum_people = Lorenz(prim, res)
+Gini_coef = Gini(prim, res)
 
 # make graphs and lorenz curve
 include("ps2_graphs.jl")
-include("PS2_Lorenz.jl")
+
 
 # @unpack val_func, pol_func, distr, q = res
 # @unpack a_grid, s_grid = prim
