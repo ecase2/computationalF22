@@ -24,7 +24,7 @@ mutable struct Results
     λ::Array{Float64, 2}
 end
 
-#function for initializing model primitives and results
+# function for initializing model primitives and results
 function Initialize(qval)
     prim = Primitives() #initialize primtiives
     val_func = zeros(prim.na, prim.ns) #initial value function guess
@@ -33,18 +33,18 @@ function Initialize(qval)
     q = qval 
     lgrid = zeros(prim.na, prim.ns)
     res = Results(val_func, pol_func, distr, q, lgrid) #initialize results struct
-    prim, res #return deliverables
+    prim, res # return deliverables
 end
 
 #Bellman Operator
 function Bellman(prim::Primitives, res::Results)
-    @unpack val_func, q, pol_func = res #unpack value function
-    @unpack a_grid, β, α, ns, s_grid, trans_matrix, na  = prim #unpack model primitives
+    @unpack val_func, q, pol_func = res # unpack value function
+    @unpack a_grid, β, α, ns, s_grid, trans_matrix, na  = prim # unpack model primitives
     v_next = zeros(na, ns) #next guess of value function to fill
 
     for s_index = 1:ns
-        s = s_grid[s_index] #value of s - current status
-        choice_lower = 1 #for exploiting monotonicity of policy function
+        s = s_grid[s_index] # value of s - current status
+        choice_lower = 1 # for exploiting monotonicity of policy function
 
         for a_index = 1:na
             candidate_max = -Inf
@@ -52,8 +52,8 @@ function Bellman(prim::Primitives, res::Results)
             a = a_grid[a_index] #value of a - current assets level
 
             budget = s + a #budget
-            for ap_index in choice_lower:na #loop over possible selections of k', exploiting monotonicity of policy function
-                c = budget - q*a_grid[ap_index] #consumption given k' selection
+            for ap_index in choice_lower:na #loop over possible selections of a', exploiting monotonicity of policy function
+                c = budget - q*a_grid[ap_index] #consumption given a' selection
                 if c>=0 #check for positivity
                     util = (c^(1-α)-1)/(1-α)
                     val = util + β*transpose(trans_matrix[s_index, :])*val_func[ap_index, :]   #compute value
@@ -86,13 +86,8 @@ function V_iterate(prim::Primitives, res::Results; tol::Float64 = 1e-4, err::Flo
     return pol_func 
 end
 
-#solve the model
-#function Solve_model(prim::Primitives, res::Results)
-#    V_iterate(prim, res) #in this case, all we have to do is the value function iteration!
-    #return res.pol_func
-#end
-
 ### Indicator matrix - to know whether the agent with (a,s) choose a'.
+### The function will be used to find the stationary distribution.
 function Indicator(prim::Primitives, res::Results)
     @unpack val_func, q, pol_func = res #unpack value function
     @unpack a_grid, β, α, ns, s_grid, trans_matrix, na = prim #unpack model primitives
@@ -125,13 +120,10 @@ function Distr(prim::Primitives, res::Results; iter = 1000, tol = 0.000001)
         distr_1 = zeros(na, ns)
         for sp_index in 1:ns
             for ap_index in 1:na
-#                distr_1[ap_index, sp_index] = distr_1[ap_index, sp_index] + sum(trans_matrix[1, sp_index].*(transpose(temp_distr[:, 1]).*transpose(I[:, ap_index, sp_index])) +  trans_matrix[2, sp_index].*(transpose(temp_distr[:, 2]).*transpose(I[:, ap_index, sp_index])))
                 distr_1[ap_index, sp_index] = distr_1[ap_index, sp_index] + sum(trans_matrix[1, sp_index].*(transpose(temp_distr[:, 1]).*transpose(I[:, ap_index, sp_index])) +
                  trans_matrix[2, sp_index].*(transpose(temp_distr[:, 2]).*transpose(I[:, ap_index, sp_index])))
-### NOT SURE that 1st is correct
             end
         end
-    #    diff = sqrt(sum((distr_1 .- temp_distr).^2))
         diff = maximum(abs.(distr_1 .- temp_distr))
         n = n + 1
     #    println("Iteration ", n-1, " Diff = ", diff);
@@ -142,9 +134,6 @@ function Distr(prim::Primitives, res::Results; iter = 1000, tol = 0.000001)
 end
 
 function ExcessDemand(prim::Primitives, res::Results)
-#    @unpack val_func, q, pol_func, distr = res #unpack value function
-#    @unpack a_grid, β, α, ns, s_grid, trans_matrix, na = prim #unpack model primitives
-
     ED = transpose(res.distr[:, 1])*res.pol_func[:, 1] + transpose(res.distr[:, 2])*res.pol_func[:, 2]
     return ED
 end
@@ -157,9 +146,9 @@ function ClearMarket(prim::Primitives, res::Results; iter = 1000, tol = 0.005)
     diff = ExcessDemand(prim, res)
     n = 1
     while (abs(diff) > tol && n < iter)
-        adj_step = 0.00005
-        if abs(diff) <0.06
-            adj_step = 0.000001
+        adj_step = 0.00001
+        if abs(diff) < 0.005
+            adj_step = 0.0000000000000001
         end 
         res.q = res.q + adj_step
         Initialize(res.q)
@@ -172,6 +161,67 @@ function ClearMarket(prim::Primitives, res::Results; iter = 1000, tol = 0.005)
     return diff
 
 end
+
+### Lorenz curve
+function Lorenz(prim::Primitives, res::Results)
+    @unpack pol_func, distr = res
+    @unpack s_grid, a_grid,  na, ns = prim
+
+    N = na*ns
+
+    wealth = zeros(na, ns)
+    wealth[:, 1] = a_grid .+ 1
+    wealth[:, 2] = a_grid .+ 0.5
+
+    wealth = sort([wealth[:, 1]; wealth[:, 2]])
+    people_sh = zeros(N)
+    
+    for w_index =  1:N, a_index = 1:na
+        for s_index in 1:2
+            w = wealth[w_index]
+            if a_grid[a_index] + s_grid[s_index] == w
+                people_sh[w_index] = people_sh[w_index] + distr[a_index, s_index]
+            end
+        end
+    end
+
+    total_wealth = zeros(N)
+    total_wealth = people_sh.*wealth
+
+    agg_wealth = sum(total_wealth)
+
+    sum_people = zeros(N)
+    sum_wealth = zeros(N)
+
+    for i in 1:N
+        sum_people[i] = sum(people_sh[1:i])
+        sum_wealth[i] =  sum(total_wealth[1:i])/agg_wealth
+    end
+    return sum_wealth, sum_people
+end
+
+
+function Gini(prim::Primitives, res::Results; wealth = sum_wealth, share = sum_people)
+    @unpack na, ns = prim
+
+    area0 = 0.5 ### Area under 45 degree line
+    area1 = 0 ### Area under the Lorenz curve
+    x = collect(0:1/(ns*na-1):1)
+    y = x
+    diff = zeros(ns*na)
+    for i in 1:length(wealth)
+            diff[i] = y[i] - wealth[i]
+    end
+    for i in 1:(length(wealth)-1)
+        ### Compute area under the Lorenz curve as a sum of rectangular areas
+        area1 = area1 + (share[i+1] - share[i])*(diff[i] + diff[i+1])
+
+    end
+
+    return area1/area0
+
+end
+
 
 # Calculate first-best welfare
 function calcWelfareFB(prim::Primitives)
@@ -267,38 +317,3 @@ end
 
 
 
-
-
-
-
-#######################################################################################
-### Function to find stationary distribution when there is only one state of the world
-function DistrSimple(prim::Primitives, res::Results; iter = 1000, tol = 0.000001)
-    @unpack val_func, q, pol_func = res #unpack value function
-    @unpack a_grid, β, α, ns, s_grid, trans_matrix, na = prim #unpack model primitives
-
-#    temp_distr = ones(na, ns)/(na*ns)
-#    distr_1 = zeros(na, ns)
-
-    temp_distr = ones(na)/na
-    diff = 100
-    n = 1
-    ### create the indicator variable
-    while (diff > tol && n < iter)
-            distr_1 = zeros(na)
-    #    for sp_index in 1:ns
-            for a_index in 1:na
-                ap = pol_func[a_index, 1]
-                ap_index = findall(x -> x ==  ap, a_grid)[1]
-
-            #    distr_1[ap_index, sp_index] = distr_1[ap_index, sp_index] + sum(trans_matrix[1, sp_index].*(transpose(temp_distr[:, 1]).*transpose(I[:, ap_index, sp_index])) +  trans_matrix[2, sp_index].*(transpose(temp_distr[:, 2]).*transpose(I[:, ap_index, sp_index])))
-                distr_1[ap_index] = distr_1[ap_index] + temp_distr[a_index]
-            end
-
-        diff = sqrt(sum((distr_1 .- temp_distr).^2))
-        n = n + 1
-        println("Iteration ", n-1, " Diff = ", diff);
-        temp_distr = distr_1
-    end
-    return temp_distr
-end
