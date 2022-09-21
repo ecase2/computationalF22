@@ -210,10 +210,10 @@ function Gini(prim::Primitives, res::Results; wealth = sum_wealth, share = sum_p
     area1 = 0
 
     dif = zeros(ns*na)
-    for i in 1:length(sum_wealth)
-            dif[i] = sum_people[i] - wealth[i]
+    for i in 1:length(wealth)
+            dif[i] = share[i] - wealth[i]
     end
-    for i in 1:(length(sum_wealth)-1)
+    for i in 1:(length(wealth)-1)
         ### compute area as a sum of rectangular areas
         area1 = area1 + (share[i+1] - share[i])*dif[i]
 
