@@ -73,4 +73,5 @@ savefig(figpath*"PS2_Lorenz.png")
 
 area, G = Gini(prim, res; wealth = sum_wealth, share = sum_people)
 
-write(figpath*"gini.tex", G)
+g = @sprintf "%.2f" G
+write(figpath*"gini.tex", g)
