@@ -1,4 +1,5 @@
 ### Lorenz curve
+using DataFrames
 function Lorenz(prim::Primitives, res::Results)
     @unpack pol_func, distr = res
     @unpack s_grid, na, ns = prim
@@ -68,5 +69,8 @@ sum_wealth, sum_people, df, wealth_stack = Lorenz(prim, res)
 x = collect(0:1/(prim.ns*prim.na-1):1)
 Plots.plot(x, x, title="Lorenz curve", label = "45 degree line")
 Plots.plot!(sum_people, sum_wealth, title="Lorenz curve", label = "Lorenz curve", legend =:bottomright)
+savefig(figpath*"PS2_Lorenz.png")
 
 area, G = Gini(prim, res; wealth = sum_wealth, share = sum_people)
+
+write(figpath*"gini.tex", G)

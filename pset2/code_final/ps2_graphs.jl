@@ -31,15 +31,6 @@ Plots.plot(a_grid .+ 1, res.distr[:, 1], title= "Distribution of wealth (a+s)", 
 Plots.plot!(a_grid .+ 0.5, res.distr[:, 2], title= "Distribution of wealth (a+s)", xlim = [-2, 3], xlabel = "Wealth", label = "Bad shock")
 Plots.savefig(figpath*"PS2_Distribution.png")
 
-# (c) lorenz curve 
-x = range(0,1, length = 400)
-plot(x, x, label = "45* line", linestyle = :dash, title = "Lorenz Curve", xlabel = "Cumulative share of HH", ylabel = "Cumulative share of income earned" )
-lorenz_xgrid = zeros(400)
-for i = 2:400
-    lorenz_xgrid[i] = lorenz_xgrid[i-1] + distr[i,1] + distr[i,2]
-end
-plot!(x, lorenz_xgrid, label = "Lorenz curve")
-savefig(figpath*"PS2_Lorenz.png")
 
 
 # --------------------- III. --------------------
@@ -47,16 +38,18 @@ savefig(figpath*"PS2_Lorenz.png")
 #(a) Plot λ(a,s)
 λ = calcCE(prim, res)
 
-Plots.plot(a_grid, λ[:,1], title = "Consumption equivalent", label = "Employed")
+Plots.plot(a_grid, λ[:,1], title = "Consumption equivalent λ", label = "Employed")
 Plots.plot!(a_grid, λ[:,2], title = "Consumption equivalent", label = "Unemployed", legend =:bottomright)
 Plots.savefig(figpath*"PS2_IIIa.png")
 
 #(b) Find Welfare_FB, Welfare_Inc, and WG
 W_FB = @sprintf "%.4f" calcWelfareFB(prim)
 W_Inc = @sprintf "%.4f" calcWelfareInc(prim, res)
-WG = @sprintf "%.4f" calcWG(prim, res)
+W_WG = @sprintf "%.4f" calcWelfareGain(prim, res)
 write(figpath*"W_FB.tex", W_FB)
 write(figpath*"W_Inc.tex", W_Inc)
 write(figpath*"W_WG.tex", W_WG)
 
 #(c) Find fraction of population that benefit from complete markets
+frac = @sprintf "%.1f" voteforcompmarkets(res)*100
+write(figpath*"popfrac_voting.tex", frac)
