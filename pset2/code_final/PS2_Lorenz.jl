@@ -1,41 +1,42 @@
 ### Lorenz curve
-using DataFrames
 function Lorenz(prim::Primitives, res::Results)
     @unpack pol_func, distr = res
-    @unpack s_grid, na, ns = prim
-
-    prob = zeros(na)
-    cdf = zeros(na)
-    wealth = zeros(na, ns)
-    wealth[:, 1] = pol_func[:, 1] .+ 1
-    wealth[:, 2] = pol_func[:, 2] .+ 0.5
-
-    total_wealth = zeros(na, ns)
-    total_wealth[:, 1] = distr[:, 1].*wealth[:, 1]
-    total_wealth[:, 2] = distr[:, 2].*wealth[:, 2]
-    aggregate_wealth = sum(total_wealth)
-    total_wealth = total_wealth/aggregate_wealth
+    @unpack s_grid, a_grid,  na, ns = prim
 
     N = na*ns
-    wealth_stack = zeros(N)
-    wealth_stack = [total_wealth[:, 1]; total_wealth[:, 2]]
 
-    people_sh = [distr[:, 1]; distr[:, 2]]
+    wealth = zeros(na, ns)
+    wealth[:, 1] = a_grid .+ 1
+    wealth[:, 2] = a_grid .+ 0.5
 
-    df = DataFrame([wealth_stack, people_sh], :auto)
-    rename!(df, [:x1, :x2] .=>  [:wealth, :people_sh])
-    df = sort!(df) ### Important
+    wealth = sort([wealth[:, 1]; wealth[:, 2]])
+
+    people_sh = zeros(N)
+
+    for w_index =  1:N, a_index = 1:na
+        for s_index in 1:2
+            w = wealth[w_index]
+            if a_grid[a_index] + s_grid[s_index] == w
+                people_sh[w_index] = people_sh[w_index] + distr[a_index, s_index]
+            end
+        end
+    end
+
+    total_wealth = zeros(N)
+    total_wealth = people_sh.*wealth
+
+    agg_wealth = sum(total_wealth)
+
     sum_people = zeros(N)
     sum_wealth = zeros(N)
 
     for i in 1:N
-        sum_people[i] = sum(df.people_sh[1:i])
-        sum_wealth[i] =  sum(df.wealth[1:i])
+        sum_people[i] = sum(people_sh[1:i])
+        sum_wealth[i] =  sum(total_wealth[1:i])/agg_wealth
     end
-    sum_people[N] = 1 ### Without it get 0.9999999999999887
-    sum_wealth[N] = 1 ### Without it get 0.950845200818719 since negative wealth is also positive
-    return sum_wealth, sum_people, df, wealth_stack
+    return sum_wealth, sum_people
 end
+
 
 function Gini(prim::Primitives, res::Results; wealth = sum_wealth, share = sum_people)
     @unpack na, ns = prim
@@ -46,32 +47,15 @@ function Gini(prim::Primitives, res::Results; wealth = sum_wealth, share = sum_p
     x = collect(0:1/(ns*na-1):1)
     y = x
     diff = zeros(ns*na)
-    for i in 1:length(share)
-        if wealth[i] > 0
+    for i in 1:length(wealth)
             diff[i] = y[i] - wealth[i]
-        end
-        if wealth[i] <= 0
-            diff[i] = wealth[i] + y[i]
-        end
     end
-    for i in 1:(length(share)-1)
+    for i in 1:(length(wealth)-1)
+        ### compute area as a sum of rectangular areas
         area1 = area1 + (share[i+1] - share[i])*(diff[i] + diff[i+1])
+
     end
 
-    return area1, area1/area0
+    return area1/area0
 
 end
-
-###### To plot the Lorenz curve and compute Gini
-sum_wealth, sum_people, df, wealth_stack = Lorenz(prim, res)
-
-
-x = collect(0:1/(prim.ns*prim.na-1):1)
-Plots.plot(x, x, title="Lorenz curve", label = "45 degree line")
-Plots.plot!(sum_people, sum_wealth, title="Lorenz curve", label = "Lorenz curve", legend =:bottomright)
-savefig(figpath*"PS2_Lorenz.png")
-
-area, G = Gini(prim, res; wealth = sum_wealth, share = sum_people)
-
-g = @sprintf "%.2f" G
-write(figpath*"gini.tex", g)
