@@ -204,22 +204,22 @@ end
 function Gini(prim::Primitives, res::Results; wealth = sum_wealth, share = sum_people)
     @unpack na, ns = prim
 
-    area0 = 0.5 ### Area under 45 degree line
-    area1 = 0 ### Area under the Lorenz curve
-    x = collect(0:1/(ns*na-1):1)
-    y = x
-    diff = zeros(ns*na)
-    for i in 1:length(wealth)
-            diff[i] = y[i] - wealth[i]
+    ### Area under the 45 degree line
+    area0 = 0.5
+    ### Area under the Lorenz curve
+    area1 = 0
+
+    dif = zeros(ns*na)
+    for i in 1:length(sum_wealth)
+            dif[i] = sum_people[i] - wealth[i]
     end
-    for i in 1:(length(wealth)-1)
-        ### Compute area under the Lorenz curve as a sum of rectangular areas
-        area1 = area1 + (share[i+1] - share[i])*(diff[i] + diff[i+1])
+    for i in 1:(length(sum_wealth)-1)
+        ### compute area as a sum of rectangular areas
+        area1 = area1 + (share[i+1] - share[i])*dif[i]
 
     end
 
     return area1/area0
-
 end
 
 
