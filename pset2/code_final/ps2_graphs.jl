@@ -31,7 +31,18 @@ Plots.plot(a_grid .+ 1, res.distr[:, 1], title= "Distribution of wealth (a+s)", 
 Plots.plot!(a_grid .+ 0.5, res.distr[:, 2], title= "Distribution of wealth (a+s)", xlim = [-2, 3], xlabel = "Wealth", label = "Bad shock")
 Plots.savefig(figpath*"PS2_Distribution.png")
 
+# (c) Lorenz curve 
+sum_wealth, sum_people = Lorenz(prim, res)
 
+x = collect(0:1/(prim.ns*prim.na-1):1)
+Plots.plot(x, x, title="Lorenz curve", label = "45 degree line")
+Plots.plot!(sum_people, sum_wealth, title="Lorenz curve", label = "Lorenz curve", xlabel="Percentage of agents",
+ylabel = "Percentage of wealth",  legend =:bottomright)
+Plots.savefig(figpath*"PS2_Lorenz_curve.png")
+
+### Gini coefficient 
+gini = Gini(prim, res
+write(figpath*"gini.tex", gini)
 
 # --------------------- III. --------------------
 
