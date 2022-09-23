@@ -41,7 +41,7 @@ ylabel = "Percentage of wealth",  legend =:bottomright)
 Plots.savefig(figpath*"PS2_Lorenz_curve.png")
 
 ### Gini coefficient 
-gini = Gini(prim, res
+gini = Gini(prim, res)
 write(figpath*"gini.tex", gini)
 
 # --------------------- III. --------------------
