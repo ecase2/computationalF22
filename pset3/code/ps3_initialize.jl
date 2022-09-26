@@ -122,7 +122,7 @@ function Initialize(modeltype::String = "benchmark")
     l = zeros(par.na, par.nz, par.N, par.na)
     
 
-    res = results(val_func, pol_func, F, w, r, b, e) #initialize results struct
+    res  = results(val_func, pol_func, F, w, r, b, e) #initialize results struct
     grid = grids(c, l)
     par, res, grid
 end

@@ -1,4 +1,3 @@
-
 # set some defaults for the plots:
 default(titlefont = (20, "times"), linewidth = 2)
 
@@ -9,7 +8,6 @@ default(titlefont = (20, "times"), linewidth = 2)
 
 # exercise 1.
 # savings of the worker of 20 years old with high ans low productivity shocks
-# Anna: I don't like the policy function
 plot(a_grid, pol_func[:, 1, 20], label = "High productivity", xlabel = "Current assets, a", ylabel = "Future assets, a", title = "Savings of the worker at 20 years old")
 plot!(a_grid, a_grid, label = "45 degree line", linestyle = :dash)
 plot!(a_grid, pol_func[:, 2, 20], label = "Low productivity", legend =:bottomright)
@@ -22,3 +20,13 @@ savefig(figpath*"value_at_50.png")
 
 # create table for exercise 3
 using Latexify
+
+benchmark_model = [1 2;
+                   3 4;
+                   5 6;
+                   7 8;
+                   9 10;
+                   11 12;
+                   13 14]
+norisk_model = benchmark_model
+exlab_model  = benchmark_model
