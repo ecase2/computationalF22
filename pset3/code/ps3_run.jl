@@ -19,6 +19,7 @@ figpath  = joinpath(root, "code/figs/")
 using Parameters, DataFrames, CSV, StatsPlots
 
 # run model functions
+include("ps3_initialize.jl")
 include("ps3_model.jl")
 
 #----------------------------------------------#
