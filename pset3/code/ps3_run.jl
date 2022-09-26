@@ -17,18 +17,17 @@ codepath = joinpath(root, "code")
 figpath  = joinpath(root, "code/figs/")
 
 # import packages
-using Parameters, DataFrames, CSV, StatsPlots
+using Parameters, DataFrames, CSV, Plots
 
 # run model functions
 include("ps3_initialize.jl")
 include("ps3_model.jl")
 
 #----------------------------------------------#
-### RUN THE MODEL HERE USING MODEL FUNCTIONS ###
-par, res, grid = Initialize()
-
-fill_end_grids(par, res, grid)
-backward_iteration(par, res, grid)
+# run the benchmark model and two counterfactuals 
+solve(modeltype = "benchmark")
+solve(modeltype = "norisk")
+solve(modeltype = "benchmark")
 
 #----------------------------------------------#
 
