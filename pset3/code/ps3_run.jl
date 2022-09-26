@@ -1,3 +1,4 @@
+
 #=
     COMPUTATIONAL FALL 2022 PSET 3
     AUTHORS: Hanna Han, Emily Case, Anna Lukianova
@@ -19,14 +20,26 @@ figpath  = joinpath(root, "code/figs/")
 using Parameters, DataFrames, CSV, StatsPlots
 
 # run model functions
+include("ps3_initialize.jl")
 include("ps3_model.jl")
 
 #----------------------------------------------#
 ### RUN THE MODEL HERE USING MODEL FUNCTIONS ###
 par, res, grid = Initialize()
 
-fill_end_grids(par, res, grid)
+fill_end_grids(par, res, grid) # it is better to put in somewhere else
 backward_iteration(par, res, grid)
+
+# to find distribution
+F = distribution(par, res, grid)
+sum(F) # it is less than one - bad...
+
+# to find distribution using iterating procedure - works wrong too.
+# NOTE: need to understand whether we use iteration to find the distribution or not (since now the model is finite)
+# F_v2 = distribution_v2(par, res, grid)
+# sum(F_v2)
+# maximum(F_v2)
+
 
 #----------------------------------------------#
 

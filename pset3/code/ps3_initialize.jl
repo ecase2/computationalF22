@@ -17,6 +17,9 @@
     z::Array{Float64} = [zᴴ, zᴸ]
     nz::Int64 = 2 # number of productivity shocks
 
+    pzᴴ::Float64 = 0.2037 # probability to born with high productivity
+    pzᴸ::Float64 = 0.7963 # probability to born with low productivity
+
     π_HH::Float64 = 0.9261
     π_LL::Float64 = 0.9811
     π::Matrix{Float64} = [π_HH (1-π_HH) ; (1-π_LL) π_LL] # productivity persistence probability matrix
