@@ -77,7 +77,7 @@ function Initialize()
     r = 0.05
     b = 0.2
 
-    e = DataFrame(CSV.File("C:/Users/79267/Documents/UW_PhD/3rd_year/computationalF22/pset3/ef.csv"))[:, 1]*transpose(par.z)
+    e = DataFrame(CSV.File(root*"/ef.csv"))[:, 1]*transpose(par.z)
 
     c = zeros(par.na, par.nz, par.N, par.na)
     l = zeros(par.na, par.nz, par.N, par.na)

@@ -3,6 +3,7 @@
     AUTHORS: Hanna Han, Emily Case, Anna Lukianova
 
     THIS FILE RUNS THE ENTIRE PROGRAM. OTHER CODE FILES ARE:
+    - ps3_initialize.jl: initializes structs for all models 
     - ps3_model.jl: contains the main functions to run the model
     - ps3_figs.jl: creates all graphs, figures, and .tex inputs
 
@@ -11,7 +12,7 @@
 =#
 
 # define directory paths
-root = joinpath(pwd(), "pset3")
+root     = joinpath(pwd(), "pset3")
 codepath = joinpath(root, "code")
 figpath  = joinpath(root, "code/figs/")
 
@@ -19,6 +20,7 @@ figpath  = joinpath(root, "code/figs/")
 using Parameters, DataFrames, CSV, StatsPlots
 
 # run model functions
+include("ps3_initialize.jl")
 include("ps3_model.jl")
 
 #----------------------------------------------#
