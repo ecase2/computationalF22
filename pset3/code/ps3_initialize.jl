@@ -41,18 +41,18 @@ mutable struct results
     # parameters that change based on policy experiment
     θ::Float64              # proportional labor income tax
     z::Array{Float64, 1}    # productivity shocks
-    e::Array{Float64, 1}    # productivity
+    e::Matrix{Float64}      # productivity
     γ::Float64              # weight on consumption
 
     # value and policy functions, distribution are three-dimensional objects (assets - productivity - age)
     val_func::Array{Any, 3} # value function
     pol_func::Array{Any, 3} # policy function
     F::Array{Any, 3}        # distribution
-    l::Array{Any, 3}             # optimal labor choice
+    l::Array{Any, 3}        # optimal labor choice
 
     # the dimensions are [a, z, age, a']:
-    c_grid::Array{Any, 4}        # consumption choices grid
-    l_grid::Array{Any, 4}        # labor choices grid
+    c_grid::Array{Any, 4}   # consumption choices grid
+    l_grid::Array{Any, 4}   # labor choices grid
        
     # endogenous prices
     w::Float64 # wage
@@ -65,17 +65,20 @@ mutable struct results
 end
 
 #function for initializing model primitives and results
-function Initialize(θ::Float64, z::Array{Float64, 1}, γ::Float64)
+function Initialize()
     par = parameters() #initialize primitives
 
-    e = η*transpose(z)
+    θ = 0.11
+    z = [3.0, 0.5]
+    γ = 0.42
+    e = par.η*transpose(z)
 
     val_func = zeros(par.na, par.nz, par.N) #initial value function guess
     pol_func = zeros(par.na, par.nz, par.N) #initial policy function guess
-    F = zeros(par.na, par.nz, par.N)
-    c_grid = zeros(par.na, par.nz, par.N, par.na)
-    l_grid = zeros(par.na, par.nz, par.N, par.na)
-    l = zeros(par.na, par.nz, par.N)
+    F        = zeros(par.na, par.nz, par.N)
+    c_grid   = zeros(par.na, par.nz, par.N, par.na)
+    l_grid   = zeros(par.na, par.nz, par.N, par.na)
+    l        = zeros(par.na, par.nz, par.N)
 
     w = 1.05
     r = 0.05
@@ -84,7 +87,7 @@ function Initialize(θ::Float64, z::Array{Float64, 1}, γ::Float64)
     K = 0.0
     L = 0.0
     
-    res  = results(θ, γ, z, e, val_func, pol_func, F, c, l, w, r, b, K, L) #initialize results struct
+    res  = results(θ, z, e, γ, val_func, pol_func, F, c_grid, l_grid, l, w, r, b, K, L) #initialize results struct
 
-    prim, res
+    par, res
 end

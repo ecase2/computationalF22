@@ -14,7 +14,7 @@
 # define directory paths
 root     = joinpath(pwd(), "pset3")
 codepath = joinpath(root, "code")
-figpath  = joinpath(root, "code/figs/")
+figpath  = joinpath(codepath, "figs")
 
 # import packages
 using Parameters, DataFrames, CSV, Plots
@@ -24,6 +24,8 @@ include("ps3_initialize.jl")
 include("ps3_model.jl")
 
 #----------------------------------------------#
+par, res = Initialize()
+
 # Run benchmark model
 bm_ss = SolveModel()
 bm_noss = SolveModel(θ = 0.0)
