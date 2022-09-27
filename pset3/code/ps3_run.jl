@@ -17,7 +17,8 @@ codepath = joinpath(root, "code")
 figpath  = joinpath(codepath, "figs")
 
 # import packages
-using Parameters, DataFrames, CSV, Plots
+using Parameters, DataFrames, CSV
+using Plots
 
 # run model functions
 include("ps3_initialize.jl")

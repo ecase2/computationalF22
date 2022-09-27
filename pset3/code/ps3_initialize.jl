@@ -40,7 +40,7 @@ mutable struct results
     # I think that initializing using Any may slow down the process
     # parameters that change based on policy experiment
     θ::Float64              # proportional labor income tax
-    z::Array{Float64, 1}    # productivity shocks
+    z::Vector{Float64}    # productivity shocks
     e::Matrix{Float64}      # productivity
     γ::Float64              # weight on consumption
 
@@ -53,7 +53,7 @@ mutable struct results
     # the dimensions are [a, z, age, a']:
     c_grid::Array{Any, 4}   # consumption choices grid
     l_grid::Array{Any, 4}   # labor choices grid
-       
+
     # endogenous prices
     w::Float64 # wage
     r::Float64 # interest rate
@@ -87,7 +87,7 @@ function Initialize()
     K = 0.0
     L = 0.0
     
-    res  = results(θ, z, e, γ, val_func, pol_func, F, c_grid, l_grid, l, w, r, b, K, L) #initialize results struct
+    res  = results(θ, z, e, γ, val_func, pol_func, F, l, c_grid, l_grid, w, r, b, K, L) #initialize results struct
 
     par, res
 end
