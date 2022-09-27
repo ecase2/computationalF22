@@ -1,12 +1,14 @@
-
 #=
-    COMPUTATIONAL FALL 2022 PSET 3
-    AUTHORS: Hanna Han, Emily Case, Anna Lukianova
-    THIS FILE RUNS THE ENTIRE PROGRAM. OTHER CODE FILES ARE:
-    - ps3_initialize.jl: initializes structs for all models 
-    - ps3_model.jl: contains the main functions to run the model
-    - ps3_figs.jl: creates all graphs, figures, and .tex inputs
-    NOTE TO HANNA AND ANNA: maybe we could have multiple model function files, that way each file is a little bit more concise. we can always include them one after the other in this file. it may also help with everyone working at the same time - emily 9.21.22
+    PROJECT:     COMPUTATIONAL FALL 2022 PSET 3
+    AUTHORS:     Hanna Han, Emily Case, Anna Lukianova
+    CONTENTS:    THIS FILE RUNS THE ENTIRE PROGRAM. 
+    OTHER FILES:
+    - ps3_initialize.jl    initializes structs for all models 
+    - ps3_model.jl         contains the main functions to run the model
+    - ps3_figs.jl          creates all graphs, figures, and .tex inputs
+    
+    NOTE TO HANNA AND ANNA: maybe we could have multiple model function files, that way each file is a little bit more concise. 
+    We can always include them one after the other in this file. it may also help with everyone working at the same time - emily 9.21.22
 =#
 
 # define directory paths
@@ -21,11 +23,12 @@ using Parameters, DataFrames, CSV, Plots
 include("ps3_initialize.jl")
 include("ps3_model.jl")
 
+
 #----------------------------------------------#
 # run the benchmark model and two counterfactuals 
-solve(modeltype = "benchmark")
-solve(modeltype = "norisk")
-solve(modeltype = "benchmark")
+SolveModel(modeltype = "benchmark")
+SolveModel(modeltype = "norisk")
+SolveModel(modeltype = "benchmark")
 
 
 

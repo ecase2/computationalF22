@@ -1,6 +1,8 @@
-#=====================================
-    INITIALIZE PARAMETERS AND OBJECTS
-=====================================#
+#=
+    PROJECT:     COMPUTATIONAL FALL 2022 PSET 3
+    AUTHORS:     Hanna Han, Emily Case, Anna Lukianova
+    CONTENTS:    This file initializes parameters and objects.
+=#
 mutable struct parameters
     N::Int64    # age of death
     n::Float64  # population growth
@@ -31,6 +33,7 @@ mutable struct parameters
     step::Float64
     a_grid::Array{Float64}
 end
+
 function param_init(modeltype::String)
     # the modeltype == "benchmark" values are:
     N   = 66     # age of death
@@ -91,6 +94,9 @@ mutable struct results
     # array to hold worker's productivity
     e::Array{Float64, 2} # dependendent on the deterministic age-efficiency profile and shock z
 
+    # aggregates
+    K0::Float64 # aggregate capital
+    L0::Float64 # aggregate labor
 end
 
 # structure to hold the grid for consumption and labor choices
@@ -112,16 +118,11 @@ function Initialize(modeltype::String = "benchmark")
     pol_func = zeros(par.na, par.nz, par.N) #initial policy function guess
     F = zeros(par.na, par.nz, par.N)
 
-    w = 1.05
-    r = 0.05
-    b = 0.2
-
     e = DataFrame(CSV.File(root*"/ef.csv"))[:, 1]*transpose(par.z)
 
     c = zeros(par.na, par.nz, par.N, par.na)
     l = zeros(par.na, par.nz, par.N, par.na)
     
-
     res  = results(val_func, pol_func, F, w, r, b, e) #initialize results struct
     grid = grids(c, l)
     par, res, grid

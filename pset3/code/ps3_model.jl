@@ -1,3 +1,9 @@
+#=
+    PROJECT:     COMPUTATIONAL FALL 2022 PSET 3
+    AUTHORS:     Hanna Han, Emily Case, Anna Lukianova
+    CONTENTS:    This file contains main functions.
+=#
+
 # construct the grid for consumption and labor
 # it should make the code faster
 function fill_end_grids(par::parameters, res::results, grid::grids)
@@ -24,7 +30,7 @@ function fill_end_grids(par::parameters, res::results, grid::grids)
     end
 end
 
-
+# Do backwards induction to get value function and policy function
 function backward_iteration(par::parameters, res::results, grid::grids)
     @unpack a_grid, na, z, nz, N, R, θ, γ, σ, β, π = par
     @unpack e, w, r, b, val_func, pol_func = res
@@ -78,7 +84,8 @@ function backward_iteration(par::parameters, res::results, grid::grids)
 
 end
 
-function get_distr(res::results, par::parameters)
+# Generate stationary distribution
+function get_distr(par::parameters, res::results)
     @unpack pol_func = res 
     @unpack π, na, a_grid, N, n = par 
     F = zeros(par.na, par.nz, par.N)
@@ -100,15 +107,75 @@ function get_distr(res::results, par::parameters)
     return F
 end
 
-## INSERT MARKET CLEARING FUNCTION HERE
+# Calculate wage, interest rate, and pension benefit using aggregate capital and labor
+function CalcPrices(par::parameters, res::results)
+    
+end
 
-function solve(;modeltype::String = "benchmark")
+# Determine market clearing by calculating aggregate capital demand and aggregate labor demand
+function ClearMarket(par::parameters, res::results)
+    @unpack R, N, na, nz = par
+    @unpack F, e = res
+    @unpack c, l = grid
+
+    K_demand = 0
+    L_demand = 0
+
+    # Calculate aggregate capital demand (K1)
+    for age = 1:N
+        for z_index = 1:2
+            for k_index = 1:na
+                K_demand = K_demand .+ (F[k_index, z_index, age] .* pol_func[k_index, z_index, age])
+            end
+        end
+    end
+
+    # Calculate aggregate labor demand (L1)
+    for age = 1:R-1
+        for z_index = 1:2
+            for k_index = 1:na
+                L_demand = L_demand .+ (F[k_index, z_index, age] .* e[z_index, age] .* l[k_index, z_index, age])
+            end
+        end
+    end
+    
+    # Return aggregate capital demand and labor demand
+    Agg_demand = [K_demand; L_demand]
+end
+
+# Solve the model
+function SolveModel(modeltype::String = "benchmark"; iter = 1000, tol = 0.005)
     par, res, grid = Initialize(modeltype)
     fill_end_grids(par, res, grid)
     backward_iteration(par, res, grid)
-    get_distr(res, par)
+    get_distr(par, res)
+    AggDemand = ClearMarket(par, res)
 
-    # USE MARKET CLEARING FUNCTION HERE 
 
     # NEED TO OUTPUT: K, L, w, r, b, W, cv 
+
+    diff = abs(AggDemand .- AggSupply)
+    diff = diff[1,1] + diff[2,1]
+    n = 1
+    while (diff > tol && n < iter)
+        if diff > tol 
+            
+        end 
+
+
+
+        adj_step = 0.00001
+        if abs(diff) < 0.005
+            adj_step = 0.0000000000000001
+        end 
+        res.q = res.q + adj_step
+        Initialize(res.q)
+        V_iterate(prim, res)
+        Distr(prim, res)
+        diff = ExcessDemand(prim, res)
+        println("Iteration ", n-1, " Diff = ", diff, " under price = ", res.q);
+        n = n + 1
+    end
+    return diff
+
 end
