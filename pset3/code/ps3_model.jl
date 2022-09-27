@@ -6,8 +6,8 @@ function fill_end_grids(par::parameters, res::results, grid::grids)
     @unpack c, l = grid
 
     for a_index = 1:na, z_index = 1:nz, j = 1:N, ap_index = 1:na
-        if j < 46
-            grid.l[a_index, z_index, j, ap_index] = (γ*(1-θ)*e[j, z_index]*w - (1-γ)*((1+r)*a_grid[a_index] - a_grid[ap_index]))/((1-θ)*w*e[j, z_index])
+        if j < R
+            grid.l[a_index, z_index, j, ap_index] = (γ*(1-θ)*e[j, z_index]*w - (1-γ)*((1+r)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[j, z_index])
             if grid.l[a_index, z_index, j, ap_index] < 0
                 grid.l[a_index, z_index, j, ap_index] = 0
             end
@@ -17,7 +17,7 @@ function fill_end_grids(par::parameters, res::results, grid::grids)
             grid.c[a_index, z_index, j, ap_index] = w*(1-θ)*e[j, z_index]*l[a_index, z_index, j, ap_index] + (1+r)*a_grid[a_index] - a_grid[ap_index]
             # important: le may be negative according to the formula - we will need to proceed only if l is between 0 and 1.
         end
-        if j >= 46
+        if j >= R
             #grid.l[a_index, z_index, j, ap_index] = 0 # redundant
             grid.c[a_index, z_index, j, ap_index] = (1+r)*a_grid[a_index] + b - a_grid[ap_index]
         end
@@ -27,19 +27,19 @@ end
 
 function backward_iteration(par::parameters, res::results, grid::grids)
     @unpack a_grid, na, z, nz, N, R, θ, γ, σ, β, π = par
-    @unpack e, w, r, b, val_func, pol_func, μ = res
+    @unpack e, w, r, b, val_func, pol_func = res
     @unpack c, l = grid
 
     # last period - save nothing, consume everythinig
     for a_index = 1:na, z_index = 1:nz
         pol_func[a_index, z_index, N] = 0
-        cons = c[a_index, z_index, N, 1]
+        cons                          = c[a_index, z_index, N, 1]
         val_func[a_index, z_index, N] = cons^((1-σ)*γ)/(1-σ)
     end
     t = N-1
     while t > 0
         println("age is ", t)
-        if t > 45
+        if t >= R
             for a_index = 1:na, z_index = 1:nz # not very efficient. Make to do nz loops which are identical
                 max_val = -Inf
                 for ap_index = 1:na
@@ -55,7 +55,7 @@ function backward_iteration(par::parameters, res::results, grid::grids)
                 end
             end
         end
-        if t <= 45
+        if t < R
             for a_index = 1:na, z_index = 1:nz
                 max_val = -Inf
                 for ap_index = 1:na
@@ -78,105 +78,37 @@ function backward_iteration(par::parameters, res::results, grid::grids)
 
 end
 
-function rel_sizes(par::parameters, res::results, grid::grids)
-    @unpack n, μ_1, N = par
-
-    relsize = zeros(N)
-    relsize[1] = μ_1
-    for t = 2:N
-        relsize[t] = relsize[t-1]/(1+n)
-    end
-    return relsize
-end
-# DO WE NEED RELATIVE SIZES TO COMPUTE STUFF? I think no, since we have found μ_1 using math
-
-function transition_function(par::parameters, res::results, grid::grids)
-    @unpack a_grid, na, z, nz, N, R, π = par
-    @unpack val_func, pol_func = res
-
-    ### Indicator for policy function
-    χ = zeros(na, na, nz, N) # 1 - future assets, 2 - current assets, 3 - current productivity, 4 - current age
-    for ap_index = 1:na, a_index = 1:na, z_index = 1:nz, t = 1:N
-        if pol_func[a_index, z_index, t] == a_grid[ap_index]
-            χ[ap_index, a_index, z_index, t] = 1
+function get_distr(res::results, par::parameters)
+    @unpack pol_func = res 
+    @unpack π, na, a_grid, N, n = par 
+    F = zeros(par.na, par.nz, par.N)
+    F[1,:, 1] = par.μ_1 .* [0.2037 0.7963]  # we know what they should start with at age = 1
+                                            # everyone has a = 0 at age = 1. 
+    for age = 2:N
+        for z_index = 1:2
+            kindexes = findall(!iszero,F[:,z_index, age-1])
+            for k_index in kindexes 
+                kp = pol_func[k_index, z_index, age-1] 
+                kp_index = searchsortedfirst(a_grid, kp)
+                F[kp_index,1, age] += F[k_index, z_index, age-1] * π[z_index, 1] / (1+n)
+                F[kp_index,2, age] += F[k_index, z_index, age-1] * π[z_index, 2] / (1+n)
+            end 
         end
     end
-    # transition function is a product of the indicator function for policy rule and the transition matrix
-    P = zeros(na, nz, na, nz, N) # 1 - future assets, 2 - future productivity, 3 - current assets, 4 - current productivity, 5 - current age
-    for ap_index = 1:na, zp_index = 1:nz, a_index = 1:na, z_index = 1:nz, t = 1:N
-        P[ap_index, zp_index, a_index, z_index, t] = χ[ap_index, a_index, z_index, t]*π[z_index, zp_index]
-    end
-    return P
+    res.F = F 
+
+    return F
 end
 
+## INSERT MARKET CLEARING FUNCTION HERE
 
-function distribution(par::parameters, res::results, grid::grids; tol = 0.001, iter = 1000)
-    @unpack a_grid, na, z, nz, N, R, θ, γ, σ, β, π, μ_1, pzᴴ, pzᴸ, n = par
-    @unpack e, w, r, b, val_func, pol_func, μ = res
-    @unpack c, l = grid
+function solve(;modeltype::String = "benchmark")
+    par, res, grid = Initialize(modeltype)
+    fill_end_grids(par, res, grid)
+    backward_iteration(par, res, grid)
+    get_distr(res, par)
 
-    relsize = rel_sizes(par, res, grid)
-    P = transition_function(par, res, grid)
+    # USE MARKET CLEARING FUNCTION HERE 
 
-    # distribution of agents
-    F = zeros(na, nz, N)
-
-    # distribution of newborns - they all are born with 0 assets
-    F[1, 1, 1] = pzᴴ*μ_1
-    F[1, 2, 1] = pzᴸ*μ_1
-
-
-    # using transition_function P
-    for zp_index in 1:nz, ap_index = 1:na, t = 2:N
-            F[ap_index, zp_index, t] = (transpose(P[ap_index, zp_index, :, 1, t-1])*(F[:, 1, t-1]) +
-            transpose(P[ap_index, zp_index, :, 2, t-1])*(F[:, 2, t-1]))
-    end
-
-    # without transition_function P
-    #    for a_index = 1:na, z_index = 1:nz, t = 2:N
-    #        for ap_index = 1:na, zp_index = 1:nz
-    #            if pol_func[a_index, z_index, t] == a_grid[ap_index]
-    #                F[ap_index, zp_index, t] = F[ap_index, zp_index, t] + F[a_index, z_index, t-1]*π[z_index, zp_index]
-    #            end
-    #        end
-    #    end
-
-    F
-end
-
-# using the idea as in the pset2 - now sure why there we have used iteration until convergence,
-# is it because  the model was inifinite horizon model?
-# anyways, the code works wrong since it converges to distribution = zeros(na, nz, N)
-function distribution_v2(par::parameters, res::results, grid::grids; tol = 0.001, iter = 1000)
-    @unpack a_grid, na, z, nz, N, R, θ, γ, σ, β, π, μ_1, pzᴴ, pzᴸ, n = par
-    @unpack e, w, r, b, val_func, pol_func, μ = res
-    @unpack c, l = grid
-
-    P = transition_function(par, res, grid)
-
-    # distribution of agents
-    F = zeros(na, nz, N)
-
-    # distribution of newborns - they all are born with 0 assets
-    F[1, 1, 1] = pzᴴ*μ_1
-    F[1, 2, 1] = pzᴸ*μ_1
-
-    F[2:na, :, 2:N] = (ones(na-1, nz, N-1) .- (F[1, 1, 1]+F[1, 2, 1]))/((na-1)*nz*(N-1))
-    diff = 100
-    n_it = 1
-    ### create the indicator variable
-    while (diff > tol && n_it < iter)
-        println("iteration is ", n_it, " diff is ", diff)
-        distr_1 = zeros(na, nz, N)
-        for zp_index in 1:nz, ap_index = 1:na, t = 2:N
-                distr_1[ap_index, zp_index, t] = (transpose(P[ap_index, zp_index, :, 1, t-1])*(F[:, 1, t-1]) +
-                transpose(P[ap_index, zp_index, :, 2, t-1])*(F[:, 2, t-1]))
-        end
-        println("max(distr_1) = ", maximum(distr_1))
-        diff = maximum(abs.(distr_1 .- F))
-        n_it = n_it + 1
-    #    println("Iteration ", n-1, " Diff = ", diff);
-        F = distr_1
-    end
-    F
+    # NEED TO OUTPUT: K, L, w, r, b, W, cv 
 end
