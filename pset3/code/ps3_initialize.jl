@@ -40,7 +40,7 @@ mutable struct results
     # I think that initializing using Any may slow down the process
     # parameters that change based on policy experiment
     θ::Float64              # proportional labor income tax
-    z::Vector{Float64}    # productivity shocks
+    z::Vector{Float64}      # productivity shocks
     e::Matrix{Float64}      # productivity
     γ::Float64              # weight on consumption
 
@@ -65,12 +65,12 @@ mutable struct results
 end
 
 #function for initializing model primitives and results
-function Initialize()
+function Initialize(θ_input::Float64, z_input::Vector{Float64}, γ_input::Float64)
     par = parameters() #initialize primitives
 
-    θ = 0.11
-    z = [3.0, 0.5]
-    γ = 0.42
+    θ = θ_input
+    z = z_input
+    γ = γ_input
     e = par.η*transpose(z)
 
     val_func = zeros(par.na, par.nz, par.N) #initial value function guess

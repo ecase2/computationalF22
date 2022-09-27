@@ -7,8 +7,8 @@
 # construct the grid for consumption and labor
 # it should make the code faster
 function fill_end_grids(par::parameters, res::results)
-    @unpack a_grid, na, z, nz, N, R, θ, γ, e = par
-    @unpack w, r, b = res
+    @unpack a_grid, na, nz, N, R = par
+    @unpack w, r, b, z, θ, γ, e = res
 
     for a_index = 1:na, z_index = 1:nz, j = 1:N, ap_index = 1:na
         if j < R
@@ -19,7 +19,7 @@ function fill_end_grids(par::parameters, res::results)
             if res.l_grid[a_index, z_index, j, ap_index] > 1
                 res.l_grid[a_index, z_index, j, ap_index] = 1
             end
-            res.c_grid[a_index, z_index, j, ap_index] = w*(1-θ)*e[j, z_index]*l[a_index, z_index, j, ap_index] + (1+r)*a_grid[a_index] - a_grid[ap_index]
+            res.c_grid[a_index, z_index, j, ap_index] = w*(1-θ)*e[j, z_index]*res.l_grid[a_index, z_index, j, ap_index] + (1+r)*a_grid[a_index] - a_grid[ap_index]
             # important: le may be negative according to the formula - we will need to proceed only if l is between 0 and 1.
         end
         if j >= R
@@ -31,8 +31,8 @@ end
 
 # Do backwards induction to get value function and policy function
 function backward_iteration(par::parameters, res::results)
-    @unpack a_grid, na, z, nz, N, R, θ, γ, σ, β, π, e = par
-    @unpack w, r, b, val_func, pol_func, c_grid, l_grid = res
+    @unpack a_grid, na, nz, N, R, σ, β, π = par
+    @unpack val_func, pol_func, c_grid, l_grid, θ, γ, e, z = res # w, r, b, 
 
     # last period - save nothing, consume everythinig
     for a_index = 1:na, z_index = 1:nz
@@ -43,7 +43,7 @@ function backward_iteration(par::parameters, res::results)
 
     t = N-1
     while t > 0
-        println("age is ", t)
+        # println("age is ", t)
         if t >= R
             for a_index = 1:na, z_index = 1:nz # not very efficient. Make to do nz loops which are identical
                 max_val = -Inf
@@ -64,8 +64,8 @@ function backward_iteration(par::parameters, res::results)
             for a_index = 1:na, z_index = 1:nz
                 max_val = -Inf
                 for ap_index = 1:na
-                    lab = l[a_index, z_index, t, ap_index]
-                    cons = c[a_index, z_index, t, ap_index]
+                    lab = l_grid[a_index, z_index, t, ap_index]  # CHANGED FROM L TO LGRID
+                    cons = c_grid[a_index, z_index, t, ap_index] # CHANGED FROM C TO CGRID
                     if cons >= 0
                         util = (cons^γ*(1-lab)^(1-γ))^(1-σ)/(1-σ) + β*(transpose(π[z_index, :])*val_func[ap_index, :, t + 1])
                         if util > max_val
@@ -108,9 +108,9 @@ function get_distr(par::parameters, res::results)
 end
 
 # Calculate wage, interest rate, and pension benefit using aggregate capital and labor
-function CalcPrices(par::parameters, res::results, K, L)
-    @unpack α, δ, θ, R, N = par
-    @unpack F = res
+function CalcPrices(par::parameters, res::results, K::Float64, L::Float64)
+    @unpack α, δ, R, N = par
+    @unpack F, θ = res
 
     # Calculate w
     res.w = (1-α)*(K^α)*(L^(-α))
@@ -120,13 +120,13 @@ function CalcPrices(par::parameters, res::results, K, L)
 
     # Calculate b
     @unpack w = res
-    res.b = (θ*w*L)/ sum(F[R:N, :, :])
+    res.b = (θ*w*L)/ sum(F[ :, :, R:N])
 end
 
 # Determine market clearing by calculating aggregate capital demand and aggregate labor demand
 function AggregateDemand(par::parameters, res::results)
-    @unpack R, N, na, nz, e = par
-    @unpack F, c, l, pol_func = res
+    @unpack R, N, na, nz = par
+    @unpack F, l, pol_func, e = res
 
     K1 = 0.0
     L1 = 0.0
@@ -135,7 +135,7 @@ function AggregateDemand(par::parameters, res::results)
     for age = 1:N
         for z_index = 1:nz
             for k_index = 1:na
-                K1 = K1 .+ (F[k_index, z_index, age] .* pol_func[k_index, z_index, age])
+                K1 += (F[k_index, z_index, age] .* pol_func[k_index, z_index, age])
             end
         end
     end
@@ -144,49 +144,60 @@ function AggregateDemand(par::parameters, res::results)
     for age = 1:R-1
         for z_index = 1:nz
             for k_index = 1:na
-                L1 = L1 .+ (F[k_index, z_index, age] .* e[z_index, age] .* l[k_index, z_index, age])
+                L1 += (F[k_index, z_index, age] .* e[age, z_index] .* l[k_index, z_index, age])
             end
         end
     end
 
-    aggregate = [K1; L1]
-
-    return aggregate
+    return K1, L1
 end
 
 # Solve the model
-function SolveModel(;θ::Float64 = 0.11, z::Array{Float64, 1} = [3.0, 0.5], γ::Float64 = 0.42, iter = 1000, tol = 0.005)
-    res = Initialize(θ, z, γ)
+function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Float64 = 0.42, iter = 1000, tol = 0.005)
+    par, res = Initialize(θ, z, γ)
 
     # Set initial guesses
     K0 = 3.3
     L0 = 0.3
-    diff = 0.0
+    diff = 10.0
     n = 1
 
-    # Calculate w, r, b based on guess of K0, L0
-    CalcPrices(par, res, K0, L0)
 
     # Find K, L
     while (diff > tol && n < iter)
+        println("BEGINNING ITERATION $n")
         n = n+1
         
         # Solve
         fill_end_grids(par, res)
         backward_iteration(par, res)
         get_distr(par, res)
-        K1 = AggregateDemand(par, res)[1,1]
-        L1 = AggregateDemand(par, res)[2,1]
-        diff = abs(K1 - K0) + abs(L1 - L0)
+
+        # Calculate w, r, b based on guess of K0, L0
+        CalcPrices(par, res, K0, L0)
+
+        K1, L1 = AggregateDemand(par, res) 
+        diff = abs(K1 - K0) + abs(L1 - L0) 
+        println("FINDS DIFFERENCE $diff... K DIFFERENCES $(K1 - K0), L DIFFERENCES $(L1 - L0)\n")
+
 
         # Adjust guess
-        if diff > tol
-            K0 = par.λ*K1 + (1-par.λ)*K0
-            L0 = par.λ*L1 + (1-par.λ)*L0
-            CalcPrices(par, res, K0, L0)
-        else
+        if diff > tol 
+            if (K1 - K0) > 0 # if the demand is higher than supply, new supply guess has more weight
+                λ_k = 0.3
+            else 
+                λ_k = 0.7
+            end 
+            if (L1 - L0) >0 
+                λ_l = 0.3 
+            else 
+                λ_l = 0.7
+            end 
+            K0 = λ_k*K1 + (1-λ_k)*K0 
+            L0 = λ_l*L1 + (1-λ_l)*L0 
+        else 
             break
-        end
+        end 
     end
 
     # Produce results matrix

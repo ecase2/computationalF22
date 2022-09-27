@@ -25,7 +25,7 @@ include("ps3_initialize.jl")
 include("ps3_model.jl")
 
 #----------------------------------------------#
-par, res = Initialize()
+# par, res = Initialize()
 
 # Run benchmark model
 bm_ss = SolveModel()
