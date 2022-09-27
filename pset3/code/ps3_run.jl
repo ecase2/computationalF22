@@ -23,14 +23,18 @@ using Parameters, DataFrames, CSV, Plots
 include("ps3_initialize.jl")
 include("ps3_model.jl")
 
-
 #----------------------------------------------#
-# run the benchmark model and two counterfactuals 
-SolveModel(modeltype = "benchmark")
-SolveModel(modeltype = "norisk")
-SolveModel(modeltype = "benchmark")
+# Run benchmark model
+bm_ss = SolveModel()
+bm_noss = SolveModel(θ = 0.0)
 
+# No productivity shocks
+noshock_ss = SolveModel(z = [0.5, 0.5])
+noshock_noss = SolveModel(θ = 0.0, z = [0.5, 0.5])
 
+# Inelastc labor supply
+inelasticl_ss = SolveModel(γ = 1.0)
+inelasticl_noss = SolveModel(θ = 0.0, γ = 1.0)
 
 #----------------------------------------------#
 
