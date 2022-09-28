@@ -34,17 +34,16 @@ include("ps3_figs.jl")
 
 # Run benchmark model and create graphs 
 bm_ss, par, res   = SolveModel()
-bm_ss
 createAllGraphs(par, res)
-bm_noss = SolveModel(θ = 0.0)
+bm_noss, par, res = SolveModel(θ = 0.0)
 
 # No productivity shocks - this one has trouble
-@time noshock_ss   = SolveModel(z = [0.5, 0.5])
-@time noshock_noss = SolveModel(θ = 0.0, z = [0.5, 0.5])
+noshock_ss   = SolveModel(z = [0.5, 0.5], λ = 0.1)
+noshock_noss = SolveModel(θ = 0.0, z = [0.5, 0.5], λ = 0.1)
 
 # Inelastc labor supply
-inelasticl_ss, par, res   = SolveModel(γ = 1.0)
-inelasticl_noss, par, res = SolveModel(θ = 0.0, γ = 1.0) # taking 18 iterations 
+inelasticl_ss   = SolveModel(γ = 1.0)
+inelasticl_noss = SolveModel(θ = 0.0, γ = 1.0)  
 #======================================================#
 
 
@@ -52,5 +51,7 @@ inelasticl_noss, par, res = SolveModel(θ = 0.0, γ = 1.0) # taking 18 iteration
 #       WRITE TABLES AND GRAPHS
 #------------------------------------------------------#
 # NOTE: these need to be manually uploaded to the pset3/figures folder on Overleaf
+noshock_noss = zeros(7)
+noshock_ss   = zeros(7)
 resultsTable(bm_ss, bm_noss, noshock_ss, noshock_noss, inelasticl_ss, inelasticl_noss)
 #======================================================#

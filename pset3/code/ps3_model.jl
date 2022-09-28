@@ -11,7 +11,7 @@ function getLabor(a_index, z_index, age::Int64, ap_index, par::parameters, res::
     if age >= R
         l = 0.0
     else 
-        l = (γ*(1-θ)*e[age, z_index]*w - (1-γ)*((1+r - δ)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[age, z_index])
+        l = γ - (1 - γ)*((1+r)*a_grid[a_index] - a_grid[ap_index])/((1-θ)*w*e[age, z_index]) #(γ*(1-θ)*e[age, z_index]*w - (1-γ)*((1+r - δ)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[age, z_index])
         if l > 1.0
             l = 1.0 
         elseif l < 0.0 
@@ -22,11 +22,11 @@ function getLabor(a_index, z_index, age::Int64, ap_index, par::parameters, res::
 end
 
 function getConsumption(a_index, z_index, age::Int64, ap_index, par::parameters, res::results)
-    @unpack w, θ, e, r, b = res
+    @unpack w, θ, e, r, b, γ = res
     @unpack a_grid, R, δ = par
     if age < R
         l = getLabor(a_index, z_index, age, ap_index, par, res)
-        c = w*(1-θ)*e[age, z_index]*l + (1+r-δ)*a_grid[a_index] - a_grid[ap_index]
+        c = γ * ( (1 - θ)*e[age, z_index]*w + (1+r)*a_grid[a_index] - a_grid[ap_index])# w*(1-θ)*e[age, z_index]*l + (1+r-δ)*a_grid[a_index] - a_grid[ap_index]
         return c, l
     else 
         c = (1+r-δ)*a_grid[a_index] + b - a_grid[ap_index]
@@ -119,7 +119,7 @@ function CalcPrices(par::parameters, res::results, K::Float64, L::Float64)
     res.w = (1-α)*(K^α)*(L^(-α))
 
     # Calculate r
-    res.r = α*(K^(α-1))*L^(1-α) # - δ
+    res.r = α*(K^(α-1))*L^(1-α) - δ
 
     # Calculate b
     if θ == 0.0 
@@ -132,14 +132,14 @@ end
 
 # Determine market clearing by calculating aggregate capital demand and aggregate labor demand
 function AggregateDemand(par::parameters, res::results)
-    @unpack R, N, na, nz = par
+    @unpack R, N, na, nz, a_grid = par
     @unpack F, l, pol_func, e = res
 
     K1 = 0.0
     L1 = 0.0
 
     # Calculate aggregate capital demand (K1)
-    K1 = sum(F .* pol_func)
+    K1 = sum(F .* a_grid)
     # for age = 1:N
     #     for z_index = 1:nz
     #         for k_index = 1:na
@@ -191,15 +191,15 @@ function CalcCV(res::results)
 end
 
 # Solve the model
-function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Float64 = 0.42, iter = 1000, tol = 0.005)
+function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Float64 = 0.42, λ = 0.5, iter = 1000, tol = 0.005)
     par, res = Initialize(θ, z, γ)
 
     # Set (smart) initial guesses
     K0 = 3.3
     L0 = 0.3
     if sum(z) == 1.0
-        K0 = 0.8 
-        L0 = 0.1
+        K0 = 1.0  
+        L0 = 0.15
     elseif γ == 1.0
         K0 = 7.0
         L0 = 0.7
@@ -241,11 +241,10 @@ function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Fl
             #         λ_l = 0.7
             #     end 
             # else 
-                λ_k = 0.5
-                λ_l = 0.5 
+                #λ = 0.5
             # end 
-            K0 = λ_k*K1 + (1-λ_k)*K0 
-            L0 = λ_l*L1 + (1-λ_l)*L0 
+            K0 = λ*K1 + (1-λ)*K0 
+            L0 = λ*L1 + (1-λ)*L0 
         else 
             println("DONE!\n")
             break
