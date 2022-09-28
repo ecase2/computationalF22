@@ -12,14 +12,15 @@ function fill_end_grids(par::parameters, res::results)
 
     for a_index = 1:na, z_index = 1:nz, j = 1:N, ap_index = 1:na
         if j < R
-            res.l_grid[a_index, z_index, j, ap_index] = (γ*(1-θ)*e[j, z_index]*w - (1-γ)*((1+r)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[j, z_index])
-            if res.l_grid[a_index, z_index, j, ap_index] < 0
+            l = (γ*(1-θ)*e[j, z_index]*w - (1-γ)*((1+r)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[j, z_index])
+            if l <= 0
                 res.l_grid[a_index, z_index, j, ap_index] = 0
-            end
-            if res.l_grid[a_index, z_index, j, ap_index] > 1
+            elseif l > 1
                 res.l_grid[a_index, z_index, j, ap_index] = 1
+            else 
+                res.l_grid[a_index, z_index, j, ap_index] = l 
             end
-            res.c_grid[a_index, z_index, j, ap_index] = w*(1-θ)*e[j, z_index]*res.l_grid[a_index, z_index, j, ap_index] + (1+r)*a_grid[a_index] - a_grid[ap_index]
+            res.c_grid[a_index, z_index, j, ap_index] = w*(1-θ)*e[j, z_index]*l + (1+r)*a_grid[a_index] - a_grid[ap_index]
             # important: le may be negative according to the formula - we will need to proceed only if l is between 0 and 1.
         end
         if j >= R
@@ -29,58 +30,121 @@ function fill_end_grids(par::parameters, res::results)
     end
 end
 
+
+function getLabor(a_index, z_index, age::Int64, ap_index, par::parameters, res::results)
+    @unpack R, a_grid = par
+    @unpack γ, θ, e, w, r = res
+    if age >= R
+        l = 0.0
+    else 
+        l = (γ*(1-θ)*e[age, z_index]*w - (1-γ)*((1+r)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[age, z_index])
+    end
+    return l 
+end
+
+function getConsumption(a_index, z_index, age::Int64, ap_index, par::parameters, res::results)
+    @unpack w, θ, e, r, b = res
+    @unpack a_grid, R = par
+    if age < R
+        l = getLabor(a_index, z_index, age, ap_index, par, res)
+        c = w*(1-θ)*e[age, z_index]*l + (1+r)*a_grid[a_index] - a_grid[ap_index]
+        return c, l
+    else 
+        c = (1+r)*a_grid[a_index] + b - a_grid[ap_index]
+        return c
+    end 
+    
+end
+
 # Do backwards induction to get value function and policy function
 function backward_iteration(par::parameters, res::results)
     @unpack a_grid, na, nz, N, R, σ, β, π = par
-    @unpack val_func, pol_func, c_grid, l_grid, θ, γ, e, z = res # w, r, b, 
+    @unpack val_func, pol_func, θ, γ, e, z = res # w, r, b, 
 
     # last period - save nothing, consume everythinig
     for a_index = 1:na, z_index = 1:nz
-        pol_func[a_index, z_index, N] = 0
-        cons                          = c_grid[a_index, z_index, N, 1]
-        val_func[a_index, z_index, N] = cons^((1-σ)*γ)/(1-σ)
+        pol_func[a_index, z_index, N] = 0.0
+        cons                          = getConsumption(a_index, z_index, N, 1, par, res)
+        if cons > 0.0 
+            val_func[a_index, z_index, N] = cons^((1-σ)*γ)/(1-σ)
+        end 
     end
 
-    t = N-1
-    while t > 0
-        # println("age is ", t)
-        if t >= R
-            for a_index = 1:na, z_index = 1:nz # not very efficient. Make to do nz loops which are identical
-                max_val = -Inf
-                for ap_index = 1:na
-                    cons = c_grid[a_index, z_index, t, ap_index]
-                    if cons >= 0
-                        util = cons^((1-σ)*γ)/(1-σ) + β*val_func[ap_index, z_index, t + 1]
-                        if util > max_val
-                            max_val = util
-                            res.pol_func[a_index, z_index, t] = a_grid[ap_index]
-                            res.val_func[a_index, z_index, t] = util
-                        end
-                    end
-                end
-            end
-        end
-        if t < R
-            for a_index = 1:na, z_index = 1:nz
-                max_val = -Inf
-                for ap_index = 1:na
-                    lab = l_grid[a_index, z_index, t, ap_index]  # CHANGED FROM L TO LGRID
-                    cons = c_grid[a_index, z_index, t, ap_index] # CHANGED FROM C TO CGRID
-                    if cons >= 0
-                        util = (cons^γ*(1-lab)^(1-γ))^(1-σ)/(1-σ) + β*(transpose(π[z_index, :])*val_func[ap_index, :, t + 1])
-                        if util > max_val
-                            max_val = util
-                            res.pol_func[a_index, z_index, t] = a_grid[ap_index]
-                            res.val_func[a_index, z_index, t] = util
-                            res.l[a_index, z_index, t] = lab
-                        end
-                    end
-                end
-            end
-
-        end
-        t -=  1
+    for age = N-1:-1:R
+        println("age is ", age)
+        for a_index = 1:na, z_index = 1:nz
+            max_val = -Inf 
+            for ap_index = 1:na 
+                cons = getConsumption(a_index, z_index, age, ap_index, par, res)
+                if cons >= 0
+                    util = cons^((1-σ)*γ)/(1-σ) + β*val_func[ap_index, z_index, age + 1]
+                    if util > max_val 
+                        max_val = util 
+                        pol_func[a_index, z_index, age] = a_grid[ap_index]
+                    end 
+                end 
+            end 
+            val_func[a_index, z_index, age] = max_val 
+        end 
+    end 
+    for age = R-1:-1:1
+        println("age is ", age)
+        for a_index = 1:na, z_index = 1:nz
+            max_val = -Inf 
+            for ap_index = 1:na 
+                cons, lab = getConsumption(a_index, z_index, age, ap_index, par, res)
+                if (cons >= 0) && (0<= lab <= 1)
+                    util = (cons^γ*(1-lab)^(1-γ))^(1-σ)/(1-σ) + β*(transpose(π[z_index, :])*val_func[ap_index, :, age + 1])
+                    if util > max_val 
+                        max_val = util 
+                        pol_func[a_index, z_index, age] = a_grid[ap_index]
+                        res.l[a_index, z_index, age] = lab
+                    end 
+                end 
+            end 
+            val_func[a_index, z_index, age] = max_val 
+        end 
     end
+    # t = N-1
+    # while t > 0
+    #     # println("age is ", t)
+    #     if t >= R
+    #         for a_index = 1:na, z_index = 1:nz # not very efficient. Make to do nz loops which are identical
+    #             max_val = -Inf
+    #             for ap_index = 1:na
+    #                 cons = c_grid[a_index, z_index, t, ap_index]
+    #                 if cons >= 0
+    #                     util = cons^((1-σ)*γ)/(1-σ) + β*val_func[ap_index, z_index, t + 1]
+    #                     if util > max_val
+    #                         max_val = util
+    #                         res.pol_func[a_index, z_index, t] = a_grid[ap_index]
+    #                         res.val_func[a_index, z_index, t] = util
+    #                     end
+    #                 end
+    #             end
+    #         end
+    #     end
+    #     if t < R
+    #         for a_index = 1:na, z_index = 1:nz
+    #             max_val = -Inf
+    #             for ap_index = 1:na
+    #                 lab = l_grid[a_index, z_index, t, ap_index]  # CHANGED FROM L TO LGRID
+    #                 cons = c_grid[a_index, z_index, t, ap_index] # CHANGED FROM C TO CGRID
+    #                 if cons >= 0
+    #                     util = (cons^γ*(1-lab)^(1-γ))^(1-σ)/(1-σ) + β*(transpose(π[z_index, :])*val_func[ap_index, :, t + 1])
+    #                     if util > max_val
+    #                         max_val = util
+    #                         res.pol_func[a_index, z_index, t] = a_grid[ap_index]
+    #                         res.val_func[a_index, z_index, t] = util
+    #                         res.l[a_index, z_index, t] = lab
+    #                     end
+    #                 end
+    #             end
+    #         end
+
+    #     end
+    #     t -=  1
+    # end
 end
 
 # Generate stationary distribution
@@ -119,8 +183,12 @@ function CalcPrices(par::parameters, res::results, K::Float64, L::Float64)
     res.r = α*(K^(α-1))*L^(1-α) - δ
 
     # Calculate b
-    @unpack w = res
-    res.b = (θ*w*L)/ sum(F[ :, :, R:N])
+    if θ == 0.0 
+        res.b = 0.0 
+    else 
+        @unpack w = res
+        res.b = (θ*w*L)/ sum(F[ :, :, R:N])
+    end 
 end
 
 # Determine market clearing by calculating aggregate capital demand and aggregate labor demand
@@ -169,7 +237,7 @@ function CalcCV(res::results)
 
     # Calculate welfare
     welfares = CalcWelfare(res)
-    welfare = sum(welfares)
+    welfare = sum(skipmissing(welfares))
 
     # Calculate mean welfare
     welfare_mean = mean(welfares)
@@ -187,9 +255,16 @@ end
 function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Float64 = 0.42, iter = 1000, tol = 0.005)
     par, res = Initialize(θ, z, γ)
 
-    # Set initial guesses
+    # Set (smart) initial guesses
     K0 = 3.3
     L0 = 0.3
+    if sum(z) == 1.0
+        K0 = 1.0 
+        L0 = 0.15
+    elseif γ == 1.0
+        K0 = 8.0
+        L0 = 0.7
+    end 
     diff = 10.0
     n = 1
 
@@ -199,7 +274,7 @@ function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Fl
         n = n+1
         
         # Solve
-        fill_end_grids(par, res)
+        # fill_end_grids(par, res)
         backward_iteration(par, res)
         get_distr(par, res)
 
@@ -241,5 +316,5 @@ function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Fl
     # Produce results matrix
     output = [res.K; res.L; res.w; res.r; res.b; welfare; cv]
     
-    return output    
+    return output, par, res    
 end

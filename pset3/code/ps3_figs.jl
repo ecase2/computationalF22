@@ -41,7 +41,7 @@ function createAllGraphs(par::parameters, res::results)
 
     # savings of the worker of 20 years old with high ans low productivity shocks
     # Anna: I don't like the policy function
-    plot(a_grid, pol_func[:, 1, 20]         
+    plot(a_grid, pol_func[:, 1, 20],         
         label = "High productivity")
     plot!(a_grid, pol_func[:, 2, 20], 
         label = "Low productivity")
@@ -54,19 +54,19 @@ function createAllGraphs(par::parameters, res::results)
 
     savefig(joinpath(figpath, "pol_func.png"))
 
-    # value function of a retired of 50 years old
-    StatsPlots.plot(a_grid, val_func[:, 1, 50], xlabel = "Current assets, a", ylabel = "Value", legend = false, title = "Value function of the retired at the age 50")
-    savefig(joinpath(figpath, "savings_at_20.png"))
+    # # value function of a retired of 50 years old
+    # plot(a_grid, val_func[:, 1, 50], xlabel = "Current assets, a", ylabel = "Value", legend = false, title = "Value function of the retired at the age 50")
+    # savefig(joinpath(figpath, "savings_at_20.png"))
 
     # value function of a retired of 50 years old
-    StatsPlots.plot(a_grid, val_func[:, 1, 50], xlabel = "Current assets, a", ylabel = "Value", title = "Value function of the retired at the age 50")
+    plot(a_grid, val_func[:, 1, 50], xlabel = "Current assets, a", ylabel = "Value", title = "Value function of the retired at the age 50")
     savefig(joinpath(figpath, "value_at_50.png"))
 
-    plot(a_grid, pol_func[:, 1, 20], label = "High productivity", xlabel = "Current assets, a", ylabel = "Future assets, a", title = "Savings of the worker at 20 years old")
-    plot!(a_grid, a_grid, label = "45 degree line", linestyle = :dash)
-    plot!(a_grid, pol_func[:, 2, 20], label = "Low productivity", legend =:bottomright)
+    # plot(a_grid, pol_func[:, 1, 20], label = "High productivity", xlabel = "Current assets, a", ylabel = "Future assets, a", title = "Savings of the worker at 20 years old")
+    # plot!(a_grid, a_grid, label = "45 degree line", linestyle = :dash)
+    # plot!(a_grid, pol_func[:, 2, 20], label = "Low productivity", legend =:bottomright)
 
-    savefig(joinpath(figpath, "savings_at_20.png"))
+    # savefig(joinpath(figpath, "savings_at_20.png"))
 
     # value function of a retired of 50 years old
     plot(a_grid, val_func[:, 1, 50], xlabel = "Current assets, a", ylabel = "Value", title = "Value function of the retired at the age 50")
