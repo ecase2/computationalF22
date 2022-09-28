@@ -152,16 +152,45 @@ function AggregateDemand(par::parameters, res::results)
     return K1, L1
 end
 
+# Calculate welfare
+function CalcWelfare(res::results)
+    @unpack val_func, F = res
+    
+    # Calculate welfare
+    welfare = val_func .* F
+    welfare = sum(welfare)
+
+    return welfare
+end
+
+# Calculate CV
+function CalcCV(res::results)
+    @unpack val_func, F = res
+
+    # Calculate welfare
+    welfare = CalcWelfare(res)
+
+    # Calculate mean welfare
+    welfare_mean = mean(welfare)
+
+    # Calculate standard deviation
+    welfare_sd = std(welfare)
+
+    # Calculate CV
+    cv = welfare_sd/welfare_mean
+
+    return cv
+end
+
 # Solve the model
 function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Float64 = 0.42, iter = 1000, tol = 0.005)
     par, res = Initialize(θ, z, γ)
-
+   
     # Set initial guesses
     K0 = 3.3
     L0 = 0.3
     diff = 10.0
     n = 1
-
 
     # Find K, L
     while (diff > tol && n < iter)
@@ -200,12 +229,15 @@ function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Fl
         end 
     end
 
-    # Produce results matrix
+    
     # NEED TO OUTPUT: K, L, w, r, b, W, cv 
     res.K = K0
     res.L = L0
+    welfare = CalcWelfare(res)
+    cv = CalcCV(res)
 
-    output = [res.K; res.L; res.w; res.r; res.b]
+    # Produce results matrix
+    output = [res.K; res.L; res.w; res.r; res.b; welfare; cv]
     
     return output    
 end
