@@ -1,46 +1,107 @@
-# set some defaults for the plots:
-default(titlefont = (20, "times"), linewidth = 2)
+#=
+    * THIS FILE WRITES FUNCTIONS FOR ALL OF OUR GRAPHS & TABLES 
 
-# Anna: Not sure whether I need to include some files here. Probably, not.
+    * NOTE: this file only writes *functions* which, when called, will create and save figures.
+    *       the functions should be called in other files, in order to produce figures. the reasoning
+    *       for this method is (1) that julia is faster when things are in functions, and (2) gives 
+    *       us more flexibility about when in our program we need to create graphs. 
 
-@unpack pol_func, val_func = res
-@unpack a_grid = par
+    * NOTE: when saving graphs, use savefig(joinpath(figpath, "nameofgraph.png"))
+    *       when saving tex files, use write(joinpath(figpath, "nameoffile.tex"), stringobject)
+    *       
+    *       using joinpath() and figpath allows us to always save figures to the same directory,
+    *       regradless of who's computer it is on (mac or windows). you must have figpath defined
+    *       in order for it to work... check that figpath routes to pset3/code/figs! if it doesn't 
+    *       look right, your working directory might be off. check that pwd() returns the file path
+    *       to computationalF22 (the whole repository)
+=#
 
-# exercise 1.
-# savings of the worker of 20 years old with high ans low productivity shocks
-# Anna: I don't like the policy function
-StatsPlots.plot(a_grid, pol_func[:, 1, 20], label = "High productivity", xlabel = "Current assets, a", ylabel = "Future assets, a", title = "Savings of the worker at 20 years old")
-StatsPlots.plot!(a_grid, pol_func[:, 2, 20], label = "Low productivity", legend =:bottomright)
-savefig(joinpath(figpath, "pol_func.png"))
+#======================================================#
+#       SET UP: IMPORT PACKAGES, SET DEFAULTS 
+#------------------------------------------------------#
+using Plots, Latexify
 
-# value function of a retired of 50 years old
-StatsPlots.plot(a_grid, val_func[:, 1, 50], xlabel = "Current assets, a", ylabel = "Value", legend = false, title = "Value function of the retired at the age 50")
-savefig(joinpath(figpath, "savings_at_20.png"))
+# set defaults:
+plotlyjs()                          # plots
+default(titlefont = (20, "times"),  
+    linewidth = 2)
+set_default(fmt = "%.3f",           # latexify 
+    convert_unicode = false, 
+    latex = false)  
+#======================================================#
 
-# value function of a retired of 50 years old
-StatsPlots.plot(a_grid, val_func[:, 1, 50], xlabel = "Current assets, a", ylabel = "Value", title = "Value function of the retired at the age 50")
-savefig(joinpath(figpath, "value_at_50.png"))
 
-plot(a_grid, pol_func[:, 1, 20], label = "High productivity", xlabel = "Current assets, a", ylabel = "Future assets, a", title = "Savings of the worker at 20 years old")
-plot!(a_grid, a_grid, label = "45 degree line", linestyle = :dash)
-plot!(a_grid, pol_func[:, 2, 20], label = "Low productivity", legend =:bottomright)
 
-savefig(joinpath(figpath, "savings_at_20.png"))
+#======================================================#
+#       EXERCISE 1 GRAPHS
+#------------------------------------------------------#
+function createAllGraphs(par::parameters, res::results)
+    @unpack pol_func, val_func = res
+    @unpack a_grid = par
 
-# value function of a retired of 50 years old
-plot(a_grid, val_func[:, 1, 50], xlabel = "Current assets, a", ylabel = "Value", title = "Value function of the retired at the age 50")
-savefig(joinpath(figpath,"value_at_50.png"))
+    # savings of the worker of 20 years old with high ans low productivity shocks
+    # Anna: I don't like the policy function
+    plot(a_grid, pol_func[:, 1, 20]         
+        label = "High productivity")
+    plot!(a_grid, pol_func[:, 2, 20], 
+        label = "Low productivity")
 
-# create table for exercise 3
-using Latexify
-set_default(fmt = "%.2f", convert_unicode = false)
+    # labels, title, legend, etc.: 
+    plot!(xlabel = "Current assets, a", 
+        ylabel   = "Future assets, a", 
+        title    = "Savings of the worker at 20 years old", 
+        legend   = :bottomright)
 
-x = hcat(bm_ss, bm_ss, bm_ss, bm_ss, bm_ss, bm_ss)
+    savefig(joinpath(figpath, "pol_func.png"))
 
-tabhead = [ "with SS", "wo SS", "with SS", "wo SS","with SS", "wo SS"]
-tabside = [ "capital K", "labor L", "wage w", "interest r", "pension benefit b"]
-temptable = latexify(x, env = :tabular, latex = false, side = tabside, head = tabhead)
+    # value function of a retired of 50 years old
+    StatsPlots.plot(a_grid, val_func[:, 1, 50], xlabel = "Current assets, a", ylabel = "Value", legend = false, title = "Value function of the retired at the age 50")
+    savefig(joinpath(figpath, "savings_at_20.png"))
 
-temptable[1:26]
-insert = "& \\multicolumn{2}{Benchmark model} & \\multicolumn{2}{No risk, \$z^L = z^H = 0.5\$} & \\multicolumn{2}{Exogenous labor, \$ \\gamma = 1\$} \n"
-write(joinpath(figpath, "resultstable.tex"), temptable[1:26]*insert*temptable[27:end])
+    # value function of a retired of 50 years old
+    StatsPlots.plot(a_grid, val_func[:, 1, 50], xlabel = "Current assets, a", ylabel = "Value", title = "Value function of the retired at the age 50")
+    savefig(joinpath(figpath, "value_at_50.png"))
+
+    plot(a_grid, pol_func[:, 1, 20], label = "High productivity", xlabel = "Current assets, a", ylabel = "Future assets, a", title = "Savings of the worker at 20 years old")
+    plot!(a_grid, a_grid, label = "45 degree line", linestyle = :dash)
+    plot!(a_grid, pol_func[:, 2, 20], label = "Low productivity", legend =:bottomright)
+
+    savefig(joinpath(figpath, "savings_at_20.png"))
+
+    # value function of a retired of 50 years old
+    plot(a_grid, val_func[:, 1, 50], xlabel = "Current assets, a", ylabel = "Value", title = "Value function of the retired at the age 50")
+    savefig(joinpath(figpath,"value_at_50.png"))
+end
+#======================================================#
+
+
+
+#======================================================#
+#       EXERCISE 3 TABLE  
+#------------------------------------------------------#
+function resultsTable(bm_ss, bm_noss, noshock_ss, noshock_noss, inelasticl_ss, inelasticl_noss)
+    # define the latex table head and foot 
+    tabhead = "
+    \\begin{table}\\caption{Exercise 3 Results}\n\\centering
+    \\begin{tabular}{lcccccc}
+    \\toprule
+    \t& \\multicolumn{2}{c}{Benchmark model} & \\multicolumn{2}{c}{No risk, \$z^L = z^H = 0.5\$} & \\multicolumn{2}{c}{Exogenous labor, \$\\gamma = 1\$} \\\\ 
+    \t\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}\\cmidrule(lr){6-7}
+    \t& with SS & wo SS & with SS & wo SS & with SS & wo SS\\\\
+    \\midrule"
+
+    tabfoot = "
+    \\bottomrule
+    \\end{tabular}
+    \\end{table}"
+
+    # use latexify to create the table part (minus the column names, those are too complicated for latexify) 
+    tabside   = [ "\tcapital \$K\$", "\tlabor \$L\$", "\twage \$w\$", "\tinterest \$r\$", "\tpension benefit \$b\$", "\ttotal welfare \$W\$", "\tcv(wealth)"]
+    tabvals   = hcat(bm_ss, bm_noss, noshock_ss, noshock_noss, inelasticl_ss, inelasticl_noss)
+    temptable = latexify(tabvals, env = :tabular, side = tabside)
+
+    # get rid of latexify's table head and foot, so that we can replace it with our own. 
+    temptable = temptable[25:end-14]
+    # put everything together and write the table 
+    write(joinpath(figpath, "resultstable.tex"), tabhead*temptable*tabfoot)
+end
