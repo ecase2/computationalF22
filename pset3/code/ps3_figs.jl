@@ -22,8 +22,7 @@
 using Plots, Latexify
 
 # set defaults:
-plotlyjs()                          # plots
-default(titlefont = (20, "times"),  
+default(titlefont = (20, "times"),  # plots
     linewidth = 2)
 set_default(fmt = "%.3f",           # latexify 
     convert_unicode = false, 

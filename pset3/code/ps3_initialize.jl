@@ -26,14 +26,11 @@
     μ_1::Float64 = (n*(1+n)^(N-1)) / ((1+n)^N - 1)
 
     # assets grid
-    al::Int64 = 0 # lower bound for assets
-    au::Int64 = 50 # upper bound for assets - some arbitraty number
+    al::Int64 = 0   # lower bound for assets
+    au::Int64 = 50  # upper bound for assets - some arbitraty number
     na::Int64 = 400 # number of points in the asset grid
     step::Float64 = (au - al)/(na-1)
     a_grid::Array{Float64} = collect(al:step:au)
-
-    # convergence speed 
-    λ::Float64 = 0.5
 end
 
 mutable struct results
@@ -50,9 +47,6 @@ mutable struct results
     F::Array{Any, 3}        # distribution
     l::Array{Any, 3}        # optimal labor choice
 
-    # the dimensions are [a, z, age, a']:
-    c_grid::Array{Any, 4}   # consumption choices grid
-    l_grid::Array{Any, 4}   # labor choices grid
 
     # endogenous prices
     w::Float64 # wage
@@ -76,8 +70,6 @@ function Initialize(θ_input::Float64, z_input::Vector{Float64}, γ_input::Float
     val_func = zeros(par.na, par.nz, par.N) #initial value function guess
     pol_func = zeros(par.na, par.nz, par.N) #initial policy function guess
     F        = zeros(par.na, par.nz, par.N)
-    c_grid   = zeros(par.na, par.nz, par.N, par.na)
-    l_grid   = zeros(par.na, par.nz, par.N, par.na)
     l        = zeros(par.na, par.nz, par.N)
 
     w = 1.05
@@ -90,7 +82,7 @@ function Initialize(θ_input::Float64, z_input::Vector{Float64}, γ_input::Float
     K = 0.0
     L = 0.0
     
-    res  = results(θ, z, e, γ, val_func, pol_func, F, l, c_grid, l_grid, w, r, b, K, L) #initialize results struct
+    res  = results(θ, z, e, γ, val_func, pol_func, F, l, w, r, b, K, L) #initialize results struct
 
     par, res
 end

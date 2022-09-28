@@ -4,53 +4,32 @@
     CONTENTS:    This file contains main functions.
 =#
 
-# construct the grid for consumption and labor
-# it should make the code faster
-function fill_end_grids(par::parameters, res::results)
-    @unpack a_grid, na, nz, N, R = par
-    @unpack w, r, b, z, θ, γ, e = res
-
-    for a_index = 1:na, z_index = 1:nz, j = 1:N, ap_index = 1:na
-        if j < R
-            l = (γ*(1-θ)*e[j, z_index]*w - (1-γ)*((1+r)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[j, z_index])
-            if l <= 0
-                res.l_grid[a_index, z_index, j, ap_index] = 0
-            elseif l > 1
-                res.l_grid[a_index, z_index, j, ap_index] = 1
-            else 
-                res.l_grid[a_index, z_index, j, ap_index] = l 
-            end
-            res.c_grid[a_index, z_index, j, ap_index] = w*(1-θ)*e[j, z_index]*l + (1+r)*a_grid[a_index] - a_grid[ap_index]
-            # important: le may be negative according to the formula - we will need to proceed only if l is between 0 and 1.
-        end
-        if j >= R
-            #grid.l[a_index, z_index, j, ap_index] = 0 # redundant
-            res.c_grid[a_index, z_index, j, ap_index] = (1+r)*a_grid[a_index] + b - a_grid[ap_index]
-        end
-    end
-end
-
 
 function getLabor(a_index, z_index, age::Int64, ap_index, par::parameters, res::results)
-    @unpack R, a_grid = par
+    @unpack R, a_grid, δ = par
     @unpack γ, θ, e, w, r = res
     if age >= R
         l = 0.0
     else 
-        l = (γ*(1-θ)*e[age, z_index]*w - (1-γ)*((1+r)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[age, z_index])
+        l = (γ*(1-θ)*e[age, z_index]*w - (1-γ)*((1+r - δ)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[age, z_index])
+        if l > 1.0
+            l = 1.0 
+        elseif l < 0.0 
+            l = 0.0 
+        end 
     end
     return l 
 end
 
 function getConsumption(a_index, z_index, age::Int64, ap_index, par::parameters, res::results)
     @unpack w, θ, e, r, b = res
-    @unpack a_grid, R = par
+    @unpack a_grid, R, δ = par
     if age < R
         l = getLabor(a_index, z_index, age, ap_index, par, res)
-        c = w*(1-θ)*e[age, z_index]*l + (1+r)*a_grid[a_index] - a_grid[ap_index]
+        c = w*(1-θ)*e[age, z_index]*l + (1+r-δ)*a_grid[a_index] - a_grid[ap_index]
         return c, l
     else 
-        c = (1+r)*a_grid[a_index] + b - a_grid[ap_index]
+        c = (1+r-δ)*a_grid[a_index] + b - a_grid[ap_index]
         return c
     end 
     
@@ -71,7 +50,7 @@ function backward_iteration(par::parameters, res::results)
     end
 
     for age = N-1:-1:R
-        println("age is ", age)
+        #println("age is ", age)
         for a_index = 1:na, z_index = 1:nz
             max_val = -Inf 
             for ap_index = 1:na 
@@ -81,14 +60,14 @@ function backward_iteration(par::parameters, res::results)
                     if util > max_val 
                         max_val = util 
                         pol_func[a_index, z_index, age] = a_grid[ap_index]
+                        val_func[a_index, z_index, age] = max_val
                     end 
                 end 
             end 
-            val_func[a_index, z_index, age] = max_val 
         end 
     end 
     for age = R-1:-1:1
-        println("age is ", age)
+        #println("age is ", age)
         for a_index = 1:na, z_index = 1:nz
             max_val = -Inf 
             for ap_index = 1:na 
@@ -99,52 +78,12 @@ function backward_iteration(par::parameters, res::results)
                         max_val = util 
                         pol_func[a_index, z_index, age] = a_grid[ap_index]
                         res.l[a_index, z_index, age] = lab
+                        val_func[a_index, z_index, age] = max_val
                     end 
                 end 
             end 
-            val_func[a_index, z_index, age] = max_val 
         end 
     end
-    # t = N-1
-    # while t > 0
-    #     # println("age is ", t)
-    #     if t >= R
-    #         for a_index = 1:na, z_index = 1:nz # not very efficient. Make to do nz loops which are identical
-    #             max_val = -Inf
-    #             for ap_index = 1:na
-    #                 cons = c_grid[a_index, z_index, t, ap_index]
-    #                 if cons >= 0
-    #                     util = cons^((1-σ)*γ)/(1-σ) + β*val_func[ap_index, z_index, t + 1]
-    #                     if util > max_val
-    #                         max_val = util
-    #                         res.pol_func[a_index, z_index, t] = a_grid[ap_index]
-    #                         res.val_func[a_index, z_index, t] = util
-    #                     end
-    #                 end
-    #             end
-    #         end
-    #     end
-    #     if t < R
-    #         for a_index = 1:na, z_index = 1:nz
-    #             max_val = -Inf
-    #             for ap_index = 1:na
-    #                 lab = l_grid[a_index, z_index, t, ap_index]  # CHANGED FROM L TO LGRID
-    #                 cons = c_grid[a_index, z_index, t, ap_index] # CHANGED FROM C TO CGRID
-    #                 if cons >= 0
-    #                     util = (cons^γ*(1-lab)^(1-γ))^(1-σ)/(1-σ) + β*(transpose(π[z_index, :])*val_func[ap_index, :, t + 1])
-    #                     if util > max_val
-    #                         max_val = util
-    #                         res.pol_func[a_index, z_index, t] = a_grid[ap_index]
-    #                         res.val_func[a_index, z_index, t] = util
-    #                         res.l[a_index, z_index, t] = lab
-    #                     end
-    #                 end
-    #             end
-    #         end
-
-    #     end
-    #     t -=  1
-    # end
 end
 
 # Generate stationary distribution
@@ -180,7 +119,7 @@ function CalcPrices(par::parameters, res::results, K::Float64, L::Float64)
     res.w = (1-α)*(K^α)*(L^(-α))
 
     # Calculate r
-    res.r = α*(K^(α-1))*L^(1-α) - δ
+    res.r = α*(K^(α-1))*L^(1-α) # - δ
 
     # Calculate b
     if θ == 0.0 
@@ -200,13 +139,14 @@ function AggregateDemand(par::parameters, res::results)
     L1 = 0.0
 
     # Calculate aggregate capital demand (K1)
-    for age = 1:N
-        for z_index = 1:nz
-            for k_index = 1:na
-                K1 += (F[k_index, z_index, age] .* pol_func[k_index, z_index, age])
-            end
-        end
-    end
+    K1 = sum(F .* pol_func)
+    # for age = 1:N
+    #     for z_index = 1:nz
+    #         for k_index = 1:na
+    #             K1 += (F[k_index, z_index, age] .* pol_func[k_index, z_index, age])
+    #         end
+    #     end
+    # end
 
     # Calculate aggregate labor demand (L1)
     for age = 1:R-1
@@ -226,29 +166,28 @@ function CalcWelfare(res::results)
     
     # Calculate welfare
     welfare = val_func .* F
-    # welfare = sum(welfare)
+    welfare = sum(welfare)
 
     return welfare
 end
 
 # Calculate CV
 function CalcCV(res::results)
-    @unpack val_func, F = res
+    @unpack pol_func, F = res
 
-    # Calculate welfare
-    welfares = CalcWelfare(res)
-    welfare = sum(skipmissing(welfares))
+    # Calculate wealth
+    wealth = pol_func .* F 
 
     # Calculate mean welfare
-    welfare_mean = mean(welfares)
+    wealth_mean = mean(wealth)
 
     # Calculate standard deviation
-    welfare_sd = std(welfares)
+    wealth_sd = std(wealth)
 
     # Calculate CV
-    cv = welfare_sd/welfare_mean
+    cv = wealth_sd/wealth_mean
 
-    return welfare, cv
+    return cv
 end
 
 # Solve the model
@@ -259,10 +198,10 @@ function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Fl
     K0 = 3.3
     L0 = 0.3
     if sum(z) == 1.0
-        K0 = 1.0 
-        L0 = 0.15
+        K0 = 0.8 
+        L0 = 0.1
     elseif γ == 1.0
-        K0 = 8.0
+        K0 = 7.0
         L0 = 0.7
     end 
     diff = 10.0
@@ -283,21 +222,28 @@ function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Fl
 
         K1, L1 = AggregateDemand(par, res) 
         diff = abs(K1 - K0) + abs(L1 - L0) 
-        println("FINDS DIFFERENCE $diff... K DIFFERENCES $(K1 - K0), L DIFFERENCES $(L1 - L0)\n")
+        println("FINDS DIFFERENCE $diff") # ... K DIFFERENCES $(K1 - K0), L DIFFERENCES $(L1 - L0)\n")
+        println("\tK0 = $K0 \t K1 = $K1")
+        println("\tL0 = $L0 \t L1 = $L1\n")
 
 
         # Adjust guess
         if diff > tol 
-            if (K1 - K0) > 0 # if the demand is higher than supply, new supply guess has more weight
-                λ_k = 0.3
-            else 
-                λ_k = 0.7
-            end 
-            if (L1 - L0) >0 
-                λ_l = 0.3 
-            else 
-                λ_l = 0.7
-            end 
+            # if diff > 1.0 
+            #     if (K1 - K0) > 0 # if the demand is higher than supply, new supply guess has more weight
+            #         λ_k = 0.3
+            #     else 
+            #         λ_k = 0.7
+            #     end 
+            #     if (L1 - L0) >0 
+            #         λ_l = 0.3 
+            #     else 
+            #         λ_l = 0.7
+            #     end 
+            # else 
+                λ_k = 0.5
+                λ_l = 0.5 
+            # end 
             K0 = λ_k*K1 + (1-λ_k)*K0 
             L0 = λ_l*L1 + (1-λ_l)*L0 
         else 
@@ -310,11 +256,16 @@ function SolveModel(;θ::Float64 = 0.11, z::Vector{Float64} = [3.0, 0.5], γ::Fl
     # NEED TO OUTPUT: K, L, w, r, b, W, cv 
     res.K = K0
     res.L = L0
-    welfare, cv = CalcCV(res)
+    welfare = CalcWelfare(res) 
+    cv = CalcCV(res)
     println("WELFARE IS $welfare ... CV IS $cv")
 
     # Produce results matrix
     output = [res.K; res.L; res.w; res.r; res.b; welfare; cv]
     
-    return output, par, res    
+    if (θ == 0.11) && sum(z) >2.0 && (γ != 1.0 )
+        return output, par, res   
+    else
+        return output
+    end 
 end

@@ -33,13 +33,14 @@ include("ps3_figs.jl")
 #------------------------------------------------------#
 
 # Run benchmark model and create graphs 
-@time bm_ss, par, res   = SolveModel()
+bm_ss, par, res   = SolveModel()
+bm_ss
 createAllGraphs(par, res)
-@time bm_noss, par, res = SolveModel(θ = 0.0)
+bm_noss = SolveModel(θ = 0.0)
 
 # No productivity shocks - this one has trouble
-noshock_ss, par, res   = SolveModel(z = [0.5, 0.5])
-noshock_noss, par, res = SolveModel(θ = 0.0, z = [0.5, 0.5])
+@time noshock_ss   = SolveModel(z = [0.5, 0.5])
+@time noshock_noss = SolveModel(θ = 0.0, z = [0.5, 0.5])
 
 # Inelastc labor supply
 inelasticl_ss, par, res   = SolveModel(γ = 1.0)
