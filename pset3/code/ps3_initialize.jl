@@ -75,7 +75,7 @@ function Initialize(θ_input::Float64, z_input::Vector{Float64}, γ_input::Float
     w = 1.05
     r = 0.05
     b = 0.2
-    if θ == 0.0
+    if θ_input == 0.0
         b = 0.0
     end 
 
