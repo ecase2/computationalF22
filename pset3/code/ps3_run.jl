@@ -1,20 +1,20 @@
 #=
     * PROJECT:     COMPUTATIONAL FALL 2022 PSET 3
     * AUTHORS:     Hanna Han, Emily Case, Anna Lukianova
-    * CONTENTS:    THIS FILE RUNS THE ENTIRE PROGRAM. 
+    * CONTENTS:    THIS FILE RUNS THE ENTIRE PROGRAM.
     * OTHER FILES:
-    *    ps3_initialize.jl    initializes structs for all models 
+    *    ps3_initialize.jl    initializes structs for all models
     *    ps3_model.jl         contains the main functions to run the model
     *    ps3_figs.jl          creates all graphs, figures, and .tex inputs
 =#
 
 
 #======================================================#
-#       SET UP 
+#       SET UP
 #------------------------------------------------------#
 
 # define directory paths
-root     = joinpath(pwd(), "pset3")
+root     = joinpath("C:\\Users\\79267\\Documents\\UW_PhD\\3rd_year\\computationalF22\\", "pset3")
 codepath = joinpath(root, "code")
 figpath  = joinpath(root, "figures")
 
@@ -29,10 +29,10 @@ include("ps3_figs.jl")
 
 
 #======================================================#
-#       RUN MODELS 
+#       RUN MODELS
 #------------------------------------------------------#
 
-# Run benchmark model and create graphs 
+# Run benchmark model and create graphs
 bm_ss, par, res   = SolveModel()
 createAllGraphs(par, res)
 bm_noss = SolveModel(θ = 0.0)
@@ -43,7 +43,7 @@ noshock_noss = SolveModel(θ = 0.0, z = [0.5, 0.5], λ = 0.1)
 
 # Inelastc labor supply
 inelasticl_ss   = SolveModel(γ = 1.0)
-inelasticl_noss = SolveModel(θ = 0.0, γ = 1.0)  
+inelasticl_noss = SolveModel(θ = 0.0, γ = 1.0)
 #======================================================#
 
 
