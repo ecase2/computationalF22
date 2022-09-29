@@ -11,7 +11,7 @@ function getLabor(a_index, z_index, age::Int64, ap_index, par::parameters, res::
     if age >= R
         l = 0.0
     else 
-        l = γ - (1 - γ)*((1+r)*a_grid[a_index] - a_grid[ap_index])/((1-θ)*w*e[age, z_index]) #(γ*(1-θ)*e[age, z_index]*w - (1-γ)*((1+r - δ)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[age, z_index])
+        l =  (γ*(1-θ)*e[age, z_index]*w - (1-γ)*((1+r - δ)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[age, z_index])# γ - (1 - γ)*((1+r)*a_grid[a_index] - a_grid[ap_index])/((1-θ)*w*e[age, z_index])
         if l > 1.0
             l = 1.0 
         elseif l < 0.0 
@@ -26,7 +26,7 @@ function getConsumption(a_index, z_index, age::Int64, ap_index, par::parameters,
     @unpack a_grid, R, δ = par
     if age < R
         l = getLabor(a_index, z_index, age, ap_index, par, res)
-        c = γ * ( (1 - θ)*e[age, z_index]*w + (1+r)*a_grid[a_index] - a_grid[ap_index])# w*(1-θ)*e[age, z_index]*l + (1+r-δ)*a_grid[a_index] - a_grid[ap_index]
+        c = w*(1-θ)*e[age, z_index]*l + (1+r-δ)*a_grid[a_index] - a_grid[ap_index] # γ * ( (1 - θ)*e[age, z_index]*w + (1+r)*a_grid[a_index] - a_grid[ap_index])# 
         return c, l
     else 
         c = (1+r-δ)*a_grid[a_index] + b - a_grid[ap_index]

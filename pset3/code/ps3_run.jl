@@ -35,7 +35,7 @@ include("ps3_figs.jl")
 # Run benchmark model and create graphs 
 bm_ss, par, res   = SolveModel()
 createAllGraphs(par, res)
-bm_noss, par, res = SolveModel(θ = 0.0)
+bm_noss = SolveModel(θ = 0.0)
 
 # No productivity shocks - this one has trouble
 noshock_ss   = SolveModel(z = [0.5, 0.5], λ = 0.1)
