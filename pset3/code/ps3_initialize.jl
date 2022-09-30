@@ -8,7 +8,7 @@
     n::Float64 = 0.011  # population growth
     R::Int64   = 46     # age of retirement
 
-    σ::Int64   = 2      # coefficient of relative risk aversion
+    σ::Float64   = 2.0      # coefficient of relative risk aversion
     α::Float64 = 0.36   # capital share
     δ::Float64 = 0.06   # depreciation rate
     β::Float64 = 0.97   # discount rate
@@ -45,8 +45,7 @@ mutable struct results
     val_func::Array{Any, 3} # value function
     pol_func::Array{Any, 3} # policy function
     F::Array{Any, 3}        # distribution
-    l::Array{Any, 3}        # optimal labor choice
-
+    labor::Array{Any, 3}        # optimal labor choice
 
     # endogenous prices
     w::Float64 # wage
@@ -70,7 +69,7 @@ function Initialize(θ_input::Float64, z_input::Vector{Float64}, γ_input::Float
     val_func = zeros(par.na, par.nz, par.N) #initial value function guess
     pol_func = zeros(par.na, par.nz, par.N) #initial policy function guess
     F        = zeros(par.na, par.nz, par.N)
-    l        = zeros(par.na, par.nz, par.N)
+    labor    = zeros(par.na, par.nz, par.N)
 
     w = 1.05
     r = 0.05
@@ -82,7 +81,7 @@ function Initialize(θ_input::Float64, z_input::Vector{Float64}, γ_input::Float
     K = 0.0
     L = 0.0
     
-    res  = results(θ, z, e, γ, val_func, pol_func, F, l, w, r, b, K, L) #initialize results struct
+    res  = results(θ, z, e, γ, val_func, pol_func, F, labor, w, r, b, K, L) #initialize results struct
 
     par, res
 end

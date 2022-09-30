@@ -19,8 +19,6 @@
 #======================================================#
 #       SET UP: IMPORT PACKAGES, SET DEFAULTS 
 #------------------------------------------------------#
-using Plots, Latexify
-
 # set defaults:
 default(titlefont = (20, "times"),  # plots
     linewidth = 2)
