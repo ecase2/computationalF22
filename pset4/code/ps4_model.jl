@@ -7,5 +7,5 @@
 function solveModel()
     ##############
 
-    return par, res     # what we need in order to make graphs 
+    return ins, res     # what we need in order to make graphs
 end

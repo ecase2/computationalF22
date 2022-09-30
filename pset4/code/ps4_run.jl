@@ -1,16 +1,16 @@
 #=
     * PROJECT:     COMPUTATIONAL FALL 2022 PSET 4
     * AUTHORS:     Hanna Han, Emily Case, Anna Lukianova
-    * CONTENTS:    THIS FILE RUNS THE ENTIRE PROGRAM. 
+    * CONTENTS:    THIS FILE RUNS THE ENTIRE PROGRAM.
     * OTHER FILES:
-    *    ps4_init.jl    initializes structs for all models 
+    *    ps4_init.jl    initializes structs for all models
     *    ps4_model.jl   creates functions for models
     *    ps4_figs.jl    creates functions for all graphs, figures, and .tex inputs
 =#
 
 
 #======================================================#
-#       SET UP 
+#       SET UP
 #------------------------------------------------------#
 
 # define directory paths
@@ -31,14 +31,14 @@ include("ps4_figures.jl")
 
 
 #======================================================#
-#       RUN MODELS 
+#       RUN MODELS
 #------------------------------------------------------#
 
 # exercise 1
-par, res = solveModel()
+ins, res = solveModel()
 
-# exercise 2 
-par2, res2 = solveModel()
+# exercise 2
+ins2, res2 = solveModel()
 
 #======================================================#
 
@@ -47,7 +47,7 @@ par2, res2 = solveModel()
 #       WRITE AND SAVE GRAPHS
 #------------------------------------------------------#
 
-rPath, wPath, LPath, KPath = graphPath(res, par)
-rPath2, wPath2, LPath2, KPath2 = graphPath(res2, par2)
+rPath, wPath, LPath, KPath = graphPath(res, ins)
+rPath2, wPath2, LPath2, KPath2 = graphPath(res2, ins2)
 
 #======================================================#
