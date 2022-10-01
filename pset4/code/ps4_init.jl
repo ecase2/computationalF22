@@ -17,7 +17,7 @@
     α::Float64 = 0.36   # capital share
     δ::Float64 = 0.06   # depreciation rate
     β::Float64 = 0.97   # discount rate
-    γ::Float64 = 0.42             # weight on consumption
+    γ::Float64 = 0.42   # weight on consumption
 
     # transition matrix
     π_HH::Float64 = 0.9261
@@ -54,10 +54,10 @@ end
 mutable struct results
     # results of the model
     # value and policy functions, distribution are three-dimensional objects (assets - productivity - age)
-    val_func::Array{Float64, 3} # value function
-    pol_func::Array{Float64, 3} # policy function
-    Γ::Array{Float64, 3}        # distribution
-    labor::Array{Float64, 3}    # optimal labor choice
+    val_func::Array{Float64, 4} # value function
+    pol_func::Array{Float64, 4} # policy function
+    Γ::Array{Float64, 4}        # distribution
+    labor::Array{Float64, 4}    # optimal labor choice
 
     # endogenous prices, rows = t
     w::Array{Float64, 1} # wage transition path
@@ -69,20 +69,44 @@ mutable struct results
     L::Array{Float64, 1} # aggregate labor
 end
 
+include("ps4_ss_values.jl")
 function initResults(prim::primitives, ins::inputs)
     @unpack na, T = ins
     @unpack N     = prim
-    val_func = zeros(na, 2, N)
-    pol_func = zeros(na, 2, N)
-    Γ        = zeros(na, 2, N)
-    labor    = zeros(na, 2, N)
 
     w = zeros(T)
+    w[1]   = 1.335  # steady state wage with SS
+    w[end] = 1.436  # steady state wage with no SS
+    
     r = zeros(T)
+    r[1]   = 0.037
+    r[end] = 0.026
+
     b = zeros(T)
+    b[1] = 0.231
 
     K = zeros(T)
+    K[1]   = 2.953
+    K[end] = 3.853
+
     L = zeros(T)
+    L[1]   = 0.383
+    L[end] = 0.408
+
+    val_func = zeros(T, na, 2, N)
+    pol_func = zeros(T, na, 2, N)
+    labor    = zeros(T, na, 2, N)
+    Γ = zeros(T, na, 2, N)
+
+    val_worker, pol_worker, labor[1,:,:,:] = bellman_worker(prim, ins, w[1], r[1], 0.11)
+    val_func[1, :, :, :], pol_func[1, :, :, :] = bellman_retiree(prim, ins, w[1], r[1], b[1], 0.11, val_worker, pol_worker)
+    # INITIAL DISTRIBUTION NOT WORKING... ? 
+    # Γ[1, :,:,:]   = get_ss_distr(pol_func[1, :, :, :], prim, ins)
+    
+    val_worker, pol_worker, labor[end,:,:,:] = bellman_worker(prim, ins, w[end], r[end], 0.0)
+    val_func[1, :, :, :], pol_func[1, :, :, :] = bellman_retiree(prim, ins, w[end], r[end], b[end], 0.0, val_worker, pol_worker)
+    Γ[end, :,:,:] = get_ss_distr(pol_func[end, :, :, :],  prim, ins)
+
     res = results(val_func, pol_func, Γ, labor, w, r, b, K, L)
     return res
 end
