@@ -44,16 +44,20 @@ mutable struct inputs   # EMILY: is "changeables" or some other name more approp
     a_grid::Array{Float64} # asset grid
 end
 
-function initInputs(θ_input::Float64, T_input::Int64, al::Int64, au::Int64, na_input::Int64)
-    a_grid = collect(range(au, al, na_input))
-    t_noss = 21
-    ins    = inputs(θ_input, T_input, t_noss, na_input, a_grid)
+function initInputs(θ_input::Float64, T_input::Int64, al::Int64, au::Int64, na_input::Int64, t_noss::Int64)
+    θ      = θ_input
+    T      = T_input
+    t_noss = t_noss
+    na = na_input
+    a_grid = collect(range(au, al, na))
+
+    ins    = inputs(θ, T, t_noss, na, a_grid)
     return ins
 end
 
 mutable struct results
     # results of the model
-    # value and policy functions, distribution are three-dimensional objects (assets - productivity - age)
+    # value and policy functions, distribution are four-dimensional objects (assets - productivity - age - period)
     val_func::Array{Float64, 4} # value function
     pol_func::Array{Float64, 4} # policy function
     Γ::Array{Float64, 4}        # distribution
@@ -77,21 +81,21 @@ function initResults(prim::primitives, ins::inputs)
     w = zeros(T)
     w[1]   = 1.335  # steady state wage with SS
     w[end] = 1.436  # steady state wage with no SS
-    
+
     r = zeros(T)
-    r[1]   = 0.037
-    r[end] = 0.026
+    r[1]   = 0.037  # steady state interest rate with SS
+    r[end] = 0.026  # steady state interest rate with no SS
 
     b = zeros(T)
-    b[1] = 0.231
+    b[1] = 0.231    # steady state benefits with SS
 
     K = zeros(T)
-    K[1]   = 2.953
-    K[end] = 3.853
+    K[1]   = 2.953  # steady state aggregate capital with SS
+    K[end] = 3.853  # steady state aggregate capital with no SS
 
     L = zeros(T)
-    L[1]   = 0.383
-    L[end] = 0.408
+    L[1]   = 0.383  # steady state aggregate labor with SS
+    L[end] = 0.408  # steady state aggregate labor with no SS
 
     val_func = zeros(T, na, 2, N)
     pol_func = zeros(T, na, 2, N)
@@ -100,20 +104,21 @@ function initResults(prim::primitives, ins::inputs)
 
     val_worker, pol_worker, labor[1,:,:,:] = bellman_worker(prim, ins, w[1], r[1], 0.11)
     val_func[1, :, :, :], pol_func[1, :, :, :] = bellman_retiree(prim, ins, w[1], r[1], b[1], 0.11, val_worker, pol_worker)
-    # INITIAL DISTRIBUTION NOT WORKING... ? 
-    # Γ[1, :,:,:]   = get_ss_distr(pol_func[1, :, :, :], prim, ins)
-    
+
+    Γ[1, :,:,:]   = get_ss_distr(pol_func[1, :, :, :], prim, ins)
+
     val_worker, pol_worker, labor[end,:,:,:] = bellman_worker(prim, ins, w[end], r[end], 0.0)
-    val_func[1, :, :, :], pol_func[1, :, :, :] = bellman_retiree(prim, ins, w[end], r[end], b[end], 0.0, val_worker, pol_worker)
+    val_func[end, :, :, :], pol_func[end, :, :, :] = bellman_retiree(prim, ins, w[end], r[end], b[end], 0.0, val_worker, pol_worker)
     Γ[end, :,:,:] = get_ss_distr(pol_func[end, :, :, :],  prim, ins)
 
     res = results(val_func, pol_func, Γ, labor, w, r, b, K, L)
     return res
 end
 
-function initialize(θ_input::Float64, T_input::Int64 ; al::Int64 = 0, au::Int64 = 80, na_input::Int64 = 500)
+### For exercise 1 use t_noss = 2, while for exercise 2 use t_noss = 21
+function initialize(θ_input::Float64 = 0.011, T_input::Int64 = 30, al::Int64 = 0, au::Int64 = 80, na_input::Int64 = 500, t_noss::Int64 = 1)
     prim = primitives()
-    ins  = initInputs(θ_input, T_input, al, au, na_input)
+    ins  = initInputs(θ_input, T_input, al, au, na_input, t_noss)
     res  = initResults(prim, ins)
     return prim, ins, res
 end

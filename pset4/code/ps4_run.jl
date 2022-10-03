@@ -16,6 +16,10 @@
 # define directory paths
 #   NOTE: in visual studio code, make sure you have the computationalF22 folder opened, so that
 #   pwd() automatically returns the file path to that folder
+if pwd() == "C:\\Users\\79267"
+    cd("C:\\Users\\79267\\Documents\\UW_PhD\\3rd_year\\computationalF22")
+end
+
 root     = joinpath(pwd(), "pset4")
 codepath = joinpath(root, "code")
 figpath  = joinpath(root, "figures")
@@ -34,8 +38,10 @@ include("ps4_figures.jl")
 #       RUN MODELS
 #------------------------------------------------------#
 
+prim, ins, res = initialize(0.11,  30, 0,  80,  500, 1)
+
 # exercise 1
-ins, res = solveModel()
+@time ins, res = solveModel(prim, ins, res; tol = 0.001, iter = 1000, λ = 0.95)
 
 # exercise 2
 ins2, res2 = solveModel()

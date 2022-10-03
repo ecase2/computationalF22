@@ -7,17 +7,17 @@
 # Finds the optimal labor supply
 function getLabor(a_index, z_index, age, ap_index, prim::primitives, ins::inputs, w, r)
     @unpack e, γ, R, δ = prim
-    @unpack θ,a_grid = ins 
-    
-    l = (γ*(1-θ)*e[age, z_index]*w - (1-γ)*((1+r - δ)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[age, z_index])
-    
+    @unpack θ, a_grid = ins
+
+    l = (γ*(1-θ)*e[age, z_index]*w - (1-γ)*((1+r)*a_grid[a_index] - a_grid[ap_index])) / ((1-θ)*w*e[age, z_index])
+
     if l > 1.0
-        l = 1.0 
-    elseif l < 0.0 
-        l = 0.0 
-    end 
-    
-    return l 
+        l = 1.0
+    elseif l < 0.0
+        l = 0.0
+    end
+
+    return l
 end
 
 # Finds utility of retirees
@@ -28,7 +28,7 @@ function UtilityRetiree(c::Float64, σ::Int64, γ::Float64)
         u_r = -Inf
     end
 
-    u_r 
+    u_r
 end
 
 # Finds utility of workers
@@ -39,13 +39,13 @@ function UtilityWorker(c::Float64, l::Float64, σ::Int64, γ::Float64)
         u_w = -Inf
     end
 
-    u_w 
+    u_w
 end
 
 # Bellman function for retirees
 function bellman_retiree(prim::primitives, ins::inputs, w, r, b, θ, val_func, pol_func)
     @unpack N, R, σ, β, π, γ, e, z = prim
-    @unpack a_grid, na = ins
+    @unpack a_grid, na,  = ins
 
     for z_index = 1:2
         for age = N:-1:R
@@ -58,12 +58,12 @@ function bellman_retiree(prim::primitives, ins::inputs, w, r, b, θ, val_func, p
                         val_func[a_index, z_index, N] = UtilityRetiree(c, σ, γ)
                     end
                 end
-            else 
+            else
                 choice_lower = 1                                # for exploiting monotonicity of policy function
 
                 for a_index in 1:na
                     a = a_grid[a_index]
-                    max_val = -Inf    
+                    max_val = -Inf
 
                     for ap_index in choice_lower:na
                         a_prime = a_grid[ap_index]
@@ -71,7 +71,7 @@ function bellman_retiree(prim::primitives, ins::inputs, w, r, b, θ, val_func, p
 
                         if c > 0
                             val = UtilityRetiree(c, σ, γ) + β*val_func[ap_index, z_index, age+1]
-                            
+
                             if val > max_val
                                 max_val = val
                                 pol_func[a_index, z_index, age] = a_prime
@@ -85,6 +85,7 @@ function bellman_retiree(prim::primitives, ins::inputs, w, r, b, θ, val_func, p
             end
         end
     end
+
     return val_func, pol_func
 end
 
@@ -92,6 +93,7 @@ end
 function bellman_worker(prim::primitives, ins::inputs, w::Float64, r::Float64, θ::Float64)
     @unpack N, R, σ, β, π, γ, e, z, = prim
     @unpack a_grid, na = ins
+
 
     # initialize grids for val, pol, and labor
     val_func = zeros(na, 2, N)
@@ -104,12 +106,12 @@ function bellman_worker(prim::primitives, ins::inputs, w::Float64, r::Float64, �
 
             for a_index in 1:na
                 a = a_grid[a_index]
-                max_val = -Inf    
+                max_val = -Inf
 
                 for ap_index in choice_lower:na
                     a_prime = a_grid[ap_index]
                     l = getLabor(a_index, z_index, age, ap_index, prim, ins, w, r)
-                    
+
                     c = w * (1-θ) * e[age, z_index] * l + (1+r) * a_grid[a_index] - a_prime
 
                     if c > 0 && l >= 0 && l <= 1
@@ -132,7 +134,8 @@ function bellman_worker(prim::primitives, ins::inputs, w::Float64, r::Float64, �
             end
         end
     end
-    return pol_func, val_func, labor
+
+    return val_func, pol_func, labor
 end
 
 # Iterate backwards
@@ -140,31 +143,32 @@ end
 #     @unpack N, R = par
 
 #     for age in N:-1:1
-#         if age >= R                  
-#             bellman_retiree(par, res, age)    
-#         else                                   
-#             bellman_worker(par, res, age)     
+#         if age >= R
+#             bellman_retiree(par, res, age)
+#         else
+#             bellman_worker(par, res, age)
 #         end
 #     end
 # end
 
 # Create population distribution by age
 function AgeDistribution(N::Int64, n::Float64)
-    μ = ones(N)    
-    μ[1] = 1      
+    μ = ones(N)
+    μ[1] = 1
 
-    for i in 2:N   
+    for i in 2:N
         μ[i] = μ[i-1]/(1+n)
     end
-    μ = μ ./sum(μ) 
-    μ 
+    μ = μ ./sum(μ)
+    μ
 end
 
 # Generate stationary distribution
 function get_ss_distr(pol_func, prim::primitives, ins::inputs)
     @unpack π, π0, N, n = prim
     @unpack na, a_grid = ins
-    
+
+
     F = zeros(na, 2, N)
     F[1,:, 1] = prim.μ_1 .* π0  # we know what they should start with at age = 1
     for age = 2:N
@@ -172,7 +176,8 @@ function get_ss_distr(pol_func, prim::primitives, ins::inputs)
             kindexes = findall(!iszero,F[:,z_index, age-1])
             for k_index in kindexes
                 kp = pol_func[k_index, z_index, age-1]
-                kp_index = searchsortedfirst(a_grid, kp)
+            #    kp_index = searchsortedfirst(a_grid, kp)
+                kp_index = findall(x -> x == kp, a_grid)[1]
                 F[kp_index,1, age] += F[k_index, z_index, age-1] * π[z_index, 1] / (1+n)
                 F[kp_index,2, age] += F[k_index, z_index, age-1] * π[z_index, 2] / (1+n)
             end
@@ -239,8 +244,8 @@ end
 #     else
 #         K0 = 3.3
 #         L0 = 0.3
-#     end 
-    
+#     end
+
 #     diff = 10.0
 #     n = 1
 
@@ -248,7 +253,7 @@ end
 #     while (diff > tol && n < iter)
 #         println("BEGINNING ITERATION $n")
 #         n = n+1
-        
+
 #         # Calculate w, r, b based on guess of K0, L0
 #         CalcPrices(par, res, K0, L0)
 
