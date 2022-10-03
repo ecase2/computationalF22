@@ -34,7 +34,7 @@ end
 function prices(prim::primitives, ins::inputs, res::results; K0::Array{Float64}, L0::Array{Float64})
     @unpack α, δ, R, N, n = prim
     @unpack θ, T, t_noss = ins
-    @unpack w, r, b, K, L, Γ = res
+    @unpack K, L, Γ = res
 
     # Path of wages w
     res.w = (1-α) * K.^α .* L.^(-α)
@@ -42,7 +42,7 @@ function prices(prim::primitives, ins::inputs, res::results; K0::Array{Float64},
     # Path of interest rates r
     res.r = α * K.^(α-1) .* L.^(1-α) .- δ
 
-   # Path of pensions
+    # Path of pensions
     for t = 1:T
         if t < t_noss
             @unpack w = res
@@ -67,7 +67,7 @@ function bellman_retiree_time(prim::primitives, ins::inputs,  val_func, pol_func
 
         wage = w[t]
         rate = r[t]
-        ben = b[t]
+        ben  = b[t]
         for z_index = 1:2
             for age = N:-1:R
         #        println("Age  = $age")
@@ -117,22 +117,17 @@ function bellman_retiree_time(prim::primitives, ins::inputs,  val_func, pol_func
 end
 
 # Bellman function for workers
-function bellman_worker_time(prim::primitives, ins::inputs)
+function bellman_worker_time(prim::primitives, ins::inputs, res::results)
     @unpack N, R, σ, β, π, γ, e, z, = prim
     @unpack a_grid, na, T, t_noss, θ = ins
-    @unpack w, r, b, labor = res
+    @unpack w, r, b, val_func, pol_func, labor = res
 
-
-    # initialize grids for val, pol, and labor
-    val_func = zeros(T, na, 2, N)
-    pol_func = zeros(T, na, 2, N)
-    labor    = zeros(T, na, 2, N)
 
     for t = T:-1:1
     #    println("Period t = $t")
         wage = w[t]
         rate = r[t]
-        ben = b[t]
+        ben  = b[t]
         for z_index = 1:2
             for age = R-1:-1:1
             #    println("Age  = $age")
@@ -260,7 +255,7 @@ function solveModel(prim::primitives, ins::inputs, res::results; tol = 0.001, it
         # Prices paths
         w, r, b = prices(prim, ins, res; K0 = K0, L0 = L0)
 
-        val_worker, pol_worker, res.labor = bellman_worker_time(prim, ins)
+        val_worker, pol_worker, res.labor = bellman_worker_time(prim, ins, res)
         val_func, pol_func = bellman_retiree_time(prim, ins,  val_worker, pol_worker)
 
         # Find stationary distribution
