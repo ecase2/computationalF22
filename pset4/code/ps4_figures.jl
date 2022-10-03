@@ -35,27 +35,42 @@ default(titlefont = (20, "times"),  # plots
 #       TRANSITION PATH GRAPHS
 #------------------------------------------------------#
 
-function graphPath(ins::inputs, res::results)
+function graphPath(ins::inputs, res::results; cf="")
     @unpack T = ins
     x = 1:T
-    #! need to save exercise 2 graphs differently.
+    
     # interest rate
     rPath = plot(x, res.r, title = "Interest rate transition path", ylabel = "r")
-    savefig(joinpath(figpath, "rPath.png"))
+    savefig(joinpath(figpath, "rPath"*cf*".png"))
 
     # wage rate
     wPath = plot(x, res.w, title = "Wages transition path", ylabel = "w")
-    savefig(joinpath(figpath, "wPath.png"))
+    savefig(joinpath(figpath, "wPath"*cf*".png"))
 
     # aggregate labor
     LPath = plot(x, res.L, title = "Labor transition path", ylabel = "L")
-    savefig(joinpath(figpath, "LPath.png"))
+    savefig(joinpath(figpath, "LPath"*cf*".png"))
 
     # aggregate capital
     KPath = plot(x, res.K, title = "Capital transition path", ylabel = "K")
-    savefig(joinpath(figpath, "KPath.png"))
+    savefig(joinpath(figpath, "KPath"*cf*".png"))
 
     return rPath, wPath, LPath, KPath
+end
+
+
+function graphEV(prim::primitives, ev; cf = "")
+    @unpack N = prim 
+
+    x = 1:N 
+    tit = "Consumption equivalent variation by age"
+    if cf == "2"
+        tit = tit*", exercise 2"
+    end
+    EVgraph = plot(x, ev, title = tit, xlabel = "age", ylabel = "EV")
+    savefig(joinpath(figpath, "EV"*cf*".png"))
+
+    return EVgraph 
 end
 
 

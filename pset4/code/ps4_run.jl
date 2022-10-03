@@ -54,7 +54,10 @@ ins2, res2 = solveModel()
 #------------------------------------------------------#
 
 rPath, wPath, LPath, KPath = graphPath(res, ins)
-rPath2, wPath2, LPath2, KPath2 = graphPath(res2, ins2)
+rPath2, wPath2, LPath2, KPath2 = graphPath(res2, ins2, cf = "2")
+
+EVgraph2 = graphEV(prim, ev)
+EVgraph2 = graphEV(prim, ev2; cf = "")
 
 #======================================================#
 
