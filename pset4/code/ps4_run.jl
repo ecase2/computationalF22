@@ -38,11 +38,12 @@ include("ps4_figures.jl")
 #       RUN MODELS
 #------------------------------------------------------#
 
-prim, ins, res = initialize(0.11,  30, 0,  80,  500, 1)
-
+prim, ins, res = initialize(0.11,  70, 0,  40,  200, 1)
 # exercise 1
-@time ins, res = solveModel(prim, ins, res; tol = 0.001, iter = 1000, λ = 0.95)
+@time ins, res = solveModel(prim, ins, res; tol = 0.01, iter = 1000, λ = 0.995)
 
+q1 = get_ss_distr(prim, ins, res)
+sum(q1)
 # exercise 2
 ins2, res2 = solveModel()
 
@@ -60,4 +61,3 @@ EVgraph2 = graphEV(prim, ev)
 EVgraph2 = graphEV(prim, ev2; cf = "")
 
 #======================================================#
-
