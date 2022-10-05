@@ -155,8 +155,6 @@ function bellman_retiree(prim::primitives, ins::inputs, res::results, t::Int64, 
 
     value_temp = zeros(na, 2)      # value function guess
 
-#    for t = T:-1:1
-    #    println("Period t = $t")
     wage = w[t]
     rate = r[t]
     ben = b[t]
@@ -164,41 +162,20 @@ function bellman_retiree(prim::primitives, ins::inputs, res::results, t::Int64, 
         for z_index = 1:2, a_index = 1:na
             a = a_grid[a_index]
             max_val = -Inf
-        #    for age = N:-1:R
-                if age == N
-                #    for a_index in 1:na
-                    #    c = (1 + rate) * a + ben
-                    #    pol_func[t, a_index, z_index, N] = 0.0
-
-                    #    if c > 0
-                    #        max_val = UtilityRetiree(c, σ, γ)
-                    #    end
-                    max_val = ugrid_ret[a_index, 1, t]
-                #    end
-                else
-                #    choice_lower = 1                                # for exploiting monotonicity of policy function
-
-                #    for a_index in 1:na
-                        for ap_index in 1:na
-                            a_prime = a_grid[ap_index]
-                        #    c = (1 + rate) * a + ben - a_prime
-
-                        #    if c > 0
-                            #    val = UtilityRetiree(c, σ, γ) + β*val_func[t+1, ap_index, z_index, age+1]
-                            val = ugrid_ret[a_index, ap_index, t] + β*val_func[t+1, ap_index, z_index, age+1]
-                                if val > max_val
-                                    max_val = val
-                                    pol_func[t, a_index, z_index, age] = a_prime
-                                #    choice_lower = ap_index
-                                end
-                            #end
-                        end
+            if age == N
+                max_val = ugrid_ret[a_index, 1, t]
+            else
+                for ap_index in 1:na
+                    a_prime = a_grid[ap_index]
+                    val = ugrid_ret[a_index, ap_index, t] + β*val_func[t+1, ap_index, z_index, age+1]
+                    if val > max_val
+                        max_val = val
+                        pol_func[t, a_index, z_index, age] = a_prime
+                    end
                 end
-                value_temp[a_index, z_index] = max_val
-            #end
+            end
+            value_temp[a_index, z_index] = max_val
         end
-    #end
-
     return value_temp
 end
 
@@ -211,49 +188,24 @@ function bellman_worker(prim::primitives, ins::inputs, res::results, t::Int64, a
 
     value_temp = zeros(na, 2)      # value function guess
 
-#    for t = T:-1:1
-    #    println("Period t = $t")
     wage = w[t]
     rate = r[t]
     ben = b[t]
 
+    for z_index = 1:2, a_index = 1:na
+        a = a_grid[a_index]
+        max_val = -Inf
 
-#    for t = T:-1:1
-    #    println("Period t = $t")
-
-        for z_index = 1:2, a_index = 1:na
-        #    for age = R-1:-1:1
-            #    println("Age  = $age")
-
-            #    choice_lower = 1                                                # for exploiting monotonicity of policy function
-
-            #    for a_index in 1:na
-                    a = a_grid[a_index]
-                    max_val = -Inf
-
-                    for ap_index in 1:na
-                        a_prime = a_grid[ap_index]
-                    #    l = getLabor(a_index, z_index, ap_index, prim, ins, t, age)
-
-                    #    c = wage * (1-θ) * e[age, z_index] * l + (1+rate) * a - a_prime
-
-                    #    if c > 0
-                    #        val = UtilityWorker(c, l, σ, γ) + β*(val_func[t+1, ap_index, 1, age+1]*π[z_index,1] + val_func[t+1, ap_index, 2, age+1]*π[z_index,2])
-
-                        val = ugrid_work[a_index+na*(z_index-1),ap_index,age,t]+β*sum(π[z_index,:].*val_func[t+1, ap_index,:,age+1])
-
-                            if val > max_val
-                                max_val = val
-                                pol_func[t, a_index, z_index, age] = a_prime
-                                labor[t, a_index, z_index, age] = optimal_labor(prim, res, age, a, z[z_index], a_prime, t)
-                            #    choice_lower = ap_index
-                            end
-                        #end
-                    end
-
-                    value_temp[a_index, z_index] = max_val
-                #end
-            #end
+        for ap_index in 1:na
+            a_prime = a_grid[ap_index]
+            val = ugrid_work[a_index+na*(z_index-1),ap_index,age,t]+β*sum(π[z_index,:].*val_func[t+1, ap_index,:,age+1])
+            if val > max_val
+                max_val = val
+                pol_func[t, a_index, z_index, age] = a_prime
+                labor[t, a_index, z_index, age] = optimal_labor(prim, res, age, a, z[z_index], a_prime, t)
+            end
+        end
+        value_temp[a_index, z_index] = max_val
         end
 
     return value_temp
