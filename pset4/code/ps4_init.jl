@@ -67,6 +67,7 @@ mutable struct results
     w::Array{Float64, 1} # wage transition path
     r::Array{Float64, 1} # interest rate
     b::Array{Float64, 1} # pension benefits
+    θ_path::Array{Float64, 1}
 
     # aggregates
     K::Array{Float64, 1} # aggregate capital
@@ -75,7 +76,7 @@ end
 
 include("ps4_ss_values.jl")
 function initResults(prim::primitives, ins::inputs)
-    @unpack na, T = ins
+    @unpack na, T, t_noss, θ = ins
     @unpack N     = prim
 
     w = zeros(T)
@@ -92,6 +93,8 @@ function initResults(prim::primitives, ins::inputs)
     K = zeros(T)
     K[1]   = 2.953  # steady state aggregate capital with SS
     K[end] = 3.853  # steady state aggregate capital with no SS
+
+    θ_path = ones(T)*θ
 
     L = zeros(T)
     L[1]   = 0.383  # steady state aggregate labor with SS
@@ -111,12 +114,12 @@ function initResults(prim::primitives, ins::inputs)
     val_func[end, :, :, :], pol_func[end, :, :, :] = bellman_retiree(prim, ins, w[end], r[end], b[end], 0.0, val_worker, pol_worker)
     Γ[end, :,:,:] = get_ss_distr(pol_func[end, :, :, :],  prim, ins)
 
-    res = results(val_func, pol_func, Γ, labor, w, r, b, K, L)
+    res = results(val_func, pol_func, Γ, labor, w, r, b, θ_path, K, L)
     return res
 end
 
 ### For exercise 1 use t_noss = 2, while for exercise 2 use t_noss = 21
-function initialize(θ_input::Float64 = 0.011, T_input::Int64 = 30, al::Int64 = 0, au::Int64 = 80, na_input::Int64 = 500, t_noss::Int64 = 1)
+function initialize(θ_input::Float64 = 0.011, T_input::Int64 = 30, al::Int64 = 0, au::Int64 = 80, na_input::Int64 = 500, t_noss::Int64 = 2)
     prim = primitives()
     ins  = initInputs(θ_input, T_input, al, au, na_input, t_noss)
     res  = initResults(prim, ins)

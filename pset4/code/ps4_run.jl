@@ -38,12 +38,11 @@ include("ps4_figures.jl")
 #       RUN MODELS
 #------------------------------------------------------#
 
-prim, ins, res = initialize(0.11,  30, 0,  20,  200, 1)
+prim, ins, res = initialize(0.11, 50, 0,  30,  200, 2)
 # exercise 1
-@time ins, res = solveModel(prim, ins, res; tol = 0.001, iter = 1000, λ = 0.90)
-
-q1 = get_ss_distr(prim, ins, res)
-sum(q1)
+@time ins, res, K, L = solveModel(prim, ins, res; tol = 0.1, iter = 1000, λ = 0.80)
+time = collect(1:1:ins.T)
+plot(time, K)
 # exercise 2
 ins2, res2 = solveModel()
 
@@ -55,6 +54,9 @@ ins2, res2 = solveModel()
 #------------------------------------------------------#
 
 rPath, wPath, LPath, KPath = graphPath(res, ins)
-rPath2, wPath2, LPath2, KPath2 = graphPath(res2, ins2)
+rPath2, wPath2, LPath2, KPath2 = graphPath(res2, ins2, cf = "2")
+
+EVgraph2 = graphEV(prim, ev)
+EVgraph2 = graphEV(prim, ev2; cf = "")
 
 #======================================================#
