@@ -35,10 +35,10 @@ default(titlefont = (20, "times"),  # plots
 #       TRANSITION PATH GRAPHS
 #------------------------------------------------------#
 
-function graphPath(ins::inputs, res::results; cf="")
-    @unpack T = ins
+function graphPath(prim::primitives, res::results_trans; cf="")
+    @unpack T = prim
     x = 1:T
-    
+
     # interest rate
     rPath = plot(x, res.r, title = "Interest rate transition path", ylabel = "r")
     savefig(joinpath(figpath, "rPath"*cf*".png"))
@@ -60,9 +60,9 @@ end
 
 
 function graphEV(prim::primitives, ev; cf = "")
-    @unpack N = prim 
+    @unpack N = prim
 
-    x = 1:N 
+    x = 1:N
     tit = "Consumption equivalent variation by age"
     if cf == "2"
         tit = tit*", exercise 2"
@@ -70,7 +70,7 @@ function graphEV(prim::primitives, ev; cf = "")
     EVgraph = plot(x, ev, title = tit, xlabel = "age", ylabel = "EV")
     savefig(joinpath(figpath, "EV"*cf*".png"))
 
-    return EVgraph 
+    return EVgraph
 end
 
 
