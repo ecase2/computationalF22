@@ -5,7 +5,7 @@
 =#
 
 # Finds the optimal labor supply
-function getLabor(a_index, z_index, age, ap_index, prim::primitives, res::results)
+function getLabor(a_index, z_index, age, ap_index, prim::primitives, res::StationaryResults)
     @unpack R, a_grid, δ, γ, θ, e = prim
     @unpack w, r = res
 
@@ -43,7 +43,7 @@ function UtilityWorker(c::Float64, l::Float64, σ::Float64, γ::Float64)
 end
 
 # Bellman function for retirees
-function bellman_retiree(prim::primitives, res::results, age::Int64)
+function bellman_retiree(prim::primitives, res::StationaryResults, age::Int64)
     @unpack a_grid, na,  N, R, σ, β, π, θ, γ, e, z= prim
     @unpack val_func, pol_func, r, b, w = res
 
@@ -88,7 +88,7 @@ function bellman_retiree(prim::primitives, res::results, age::Int64)
 end
 
 # Bellman function for workers
-function bellman_worker(prim::primitives, res::results, age::Int64)
+function bellman_worker(prim::primitives, res::StationaryResults, age::Int64)
     @unpack a_grid, na,  N, R, σ, β, π, θ, γ, e, z = prim
     @unpack val_func, pol_func, labor, w, r = res
 
@@ -128,7 +128,7 @@ function bellman_worker(prim::primitives, res::results, age::Int64)
 end
 
 # Iterate backwards
-function V_iterate(prim::primitives, res::results)
+function V_iterate(prim::primitives, res::StationaryResults)
     @unpack N, R = prim
 
     for age in N:-1:1
@@ -153,7 +153,7 @@ function AgeDistribution(N::Int64, n::Float64)
 end
 
 # Generate stationary distribution
-function get_distr(prim::primitives, res::results)
+function get_distr(prim::primitives, res::StationaryResults)
     @unpack π, π0, na, a_grid, N, n = prim
     @unpack pol_func = res
 
@@ -177,7 +177,7 @@ function get_distr(prim::primitives, res::results)
 end
 
 # Calculate wage, interest rate, and pension benefit using aggregate capital and labor
-function CalcPrices(prim::primitives, res::results, K::Float64, L::Float64)
+function CalcPrices(prim::primitives, res::StationaryResults, K::Float64, L::Float64)
     @unpack α, δ, R, N, n,  θ  = prim
     @unpack Γ = res
 
@@ -199,7 +199,7 @@ function CalcPrices(prim::primitives, res::results, K::Float64, L::Float64)
 end
 
 # Calculate aggregate capital and labor
-function CalcAggregate(prim::primitives, res::results)
+function CalcAggregate(prim::primitives, res::StationaryResults)
     @unpack R, N, na, a_grid, e = prim
     @unpack Γ, labor = res
 
@@ -222,7 +222,7 @@ function CalcAggregate(prim::primitives, res::results)
 end
 
 # Calculate welfare objects - need to sum over result in order to calculate total welfare
-function CalcWelfare(res::results)
+function CalcWelfare(res::StationaryResults)
     @unpack val_func, Γ = res
 
     # Calculate welfare
@@ -233,7 +233,7 @@ function CalcWelfare(res::results)
 end
 
 # Calculate CV
-function computecv(prim::primitives, res::results)
+function computecv(prim::primitives, res::StationaryResults)
     @unpack θ, e, a_grid, na,  N, R = prim
     @unpack w, r, b, labor, Γ = res
 

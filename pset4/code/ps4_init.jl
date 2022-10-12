@@ -12,7 +12,7 @@
     n::Float64 = 0.011  # population growth
     R::Int64   = 46     # age of retirement
 
-    σ::Float64   = 2.0      # coefficient of relative risk aversion
+    σ::Float64   = 2.0  # coefficient of relative risk aversion
     α::Float64 = 0.36   # capital share
     δ::Float64 = 0.06   # depreciation rate
     β::Float64 = 0.97   # discount rate
@@ -40,18 +40,16 @@
     γ::Float64 = 0.42
     e::Array{Float64, 2} = η*transpose(z)
 
-    T::Int64 = 1
-    t_noss::Int64 = 2
-
+    T::Int64 = 50
+    t_noss::Int64 = 30
 end
 
-mutable struct results
-
+mutable struct StationaryResults
     # value and policy functions, distribution are three-dimensional objects (assets - productivity - age)
     val_func::Array{Any, 3} # value function
     pol_func::Array{Any, 3} # policy function
     Γ::Array{Any, 3}        # distribution
-    labor::Array{Any, 3}        # optimal labor choice
+    labor::Array{Any, 3}    # optimal labor choice
 
     # endogenous prices
     w::Float64 # wage
@@ -63,16 +61,36 @@ mutable struct results
     L::Float64 # aggregate labor
 end
 
-#function for initializing model primitives and results
+mutable struct TransitionResults
+    # transition path of value and policy functions, distribution, and labor are four-dimensional objects (assets - productivity - age - time)
+    val_func::Array{Float64,4}  # transition path of value function
+    pol_func::Array{Float64,4}  # transition path of policy function
+    Γ::Array{Float64,4}         # transition path of distribution
+    labor::Array{Float64,4}     # transition path of labor    
+
+    # transition path of prices
+    w::Array{Float64,1} # transition path of wage
+    r::Array{Float64,1} # transition path of interest rate
+    b::Array{Float64,1} # transition path of SS pension benefits
+
+    # transition path of aggregates
+    K::Array{Float64} # transition path of aggregate capital
+    L::Array{Float64} # transition path of aggregate labor
+
+    # transition path of proportional labor income tax
+    θ_path::Array{Float64}
+end
+
+# Initialize model primitives and stationary results
 function Initialize(al::Float64, au::Float64, na::Int64, θ::Float64, z::Vector{Float64}, γ::Float64, T::Int64, t_noss::Int64)
     prim = primitives(al = al, au = au, na = na, θ = θ, z = z, γ = γ, T = T, t_noss = t_noss) #initialize primitives
 
-    val_func = zeros(prim.na, 2, prim.N) #initial value function guess
-    pol_func = zeros(prim.na, 2, prim.N) #initial policy function guess
-    Γ        = zeros(prim.na, 2, prim.N)
-    labor    = zeros(prim.na, 2, prim.N)
+    val_func = zeros(prim.na, 2, prim.N) # initialize value function
+    pol_func = zeros(prim.na, 2, prim.N) # initialize policy function
+    Γ        = zeros(prim.na, 2, prim.N) # initialize distribution
+    labor    = zeros(prim.na, 2, prim.N) # initialize labor
 
-    w = 1.05
+    w = 1.05 
     r = 0.05
     b = 0.2
     if prim.θ == 0.0
@@ -82,38 +100,19 @@ function Initialize(al::Float64, au::Float64, na::Int64, θ::Float64, z::Vector{
     K = 0.0
     L = 0.0
 
-    res  = results(val_func, pol_func, Γ, labor, w, r, b, K, L) #initialize results struct
+    res = StationaryResults(val_func, pol_func, Γ, labor, w, r, b, K, L) # initialize results struct
 
     prim, res
 end
 
-
-mutable struct results_trans
-    # results of the model
-    val_func::Array{Float64,4}  #value function is 4D - age, z1, z2, T
-    pol_func::Array{Float64,4}
-    labor::Array{Float64,4}  #labor supply function
-    Γ::Array{Float64,4}
-
-    # PRICES AND AGGS NEED TO BE ARRAYS NOW - THEY ARE PATHS OVER TIME
-    w::Array{Float64,1} #wage path
-    r::Array{Float64,1} #interest rate path
-    b::Array{Float64,1} #SS pension benefits path
-    K::Array{Float64} #agg capital path
-    L::Array{Float64} #agg labor path
-
-    #NEW
-    θ_path::Array{Float64}
-end
-
-
-function Initialize_trans(al::Float64, au::Float64, na::Int64, θ::Float64, z::Vector{Float64}, γ::Float64, T::Int64, t_noss::Int64)
+# Initialize model primitives and transition path results
+function InitializeTrans(al::Float64, au::Float64, na::Int64, θ::Float64, z::Vector{Float64}, γ::Float64, T::Int64, t_noss::Int64)
     prim = primitives(al = al, au = au, na = na, θ = θ, z = z, γ = γ, T = T, t_noss = t_noss) #initialize primitives
 
-    val_func = zeros(prim.T, prim.na, 2, prim.N) #initial value function guess
-    pol_func = zeros(prim.T, prim.na, 2, prim.N) #initial policy function guess
-    Γ        = zeros(prim.T, prim.na, 2, prim.N)
-    labor    = zeros(prim.T, prim.na, 2, prim.N)
+    val_func = zeros(prim.T, prim.na, 2, prim.N) # initialize value function transition path
+    pol_func = zeros(prim.T, prim.na, 2, prim.N) # initialize policy function transition path
+    Γ        = zeros(prim.T, prim.na, 2, prim.N) # initialize distribution transition path
+    labor    = zeros(prim.T, prim.na, 2, prim.N) # initialize labor transition path
 
     w = 1.05*ones(prim.T)
     r = 0.05*ones(prim.T)
@@ -131,7 +130,7 @@ function Initialize_trans(al::Float64, au::Float64, na::Int64, θ::Float64, z::V
         end
     end
 
-    res  = results_trans(val_func, pol_func, Γ, labor, w, r, b, K, L, θ_path) #initialize results struct
+    res = TransitionResults(val_func, pol_func, Γ, labor, w, r, b, K, L, θ_path) #initialize results struct
 
     prim, res
 end

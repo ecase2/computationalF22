@@ -2,7 +2,7 @@
 
 
 # Finds the optimal labor supply
-function getLabor(a_index, z_index, ap_index, prim::primitives,  res::results_trans, t::Int64, age::Int64)
+function getLabor(a_index, z_index, ap_index, prim::primitives, res::TransitionResults, t::Int64, age::Int64)
     @unpack e, γ, R, δ, θ, a_grid  = prim
     @unpack w, r, b, θ_path = res
 
@@ -18,7 +18,7 @@ function getLabor(a_index, z_index, ap_index, prim::primitives,  res::results_tr
 end
 
 #utility grid for retirees
-function utility_grid_ret(prim::primitives, res::results_trans)
+function utility_grid_ret(prim::primitives, res::TransitionResults)
     @unpack e, γ, R, δ, σ, a_grid, T, na  = prim
     @unpack r, b = res
 
@@ -37,7 +37,7 @@ function utility_grid_ret(prim::primitives, res::results_trans)
 end
 
 #utility grid for workers
-function utility_grid_work(prim::primitives,  res::results_trans)
+function utility_grid_work(prim::primitives,  res::TransitionResults)
     @unpack N, R, σ, β, π, γ, e, z, a_grid, na, t_noss, θ, T  = prim
     @unpack w, r, b, θ_path = res
 
@@ -62,7 +62,7 @@ function utility_grid_work(prim::primitives,  res::results_trans)
 end
 
 # Bellman function for retirees - let make age an argument of the function - maybe it will make the code faster
-function bellman_retiree(prim::primitives, res::results_trans, t::Int64, age::Int64, ugrid_ret::Array{Float64,3})
+function bellman_retiree(prim::primitives, res::TransitionResults, t::Int64, age::Int64, ugrid_ret::Array{Float64,3})
     @unpack N, R, σ, β, π, γ, e, z, a_grid, na, t_noss, θ  = prim
     @unpack w, r, b, pol_func, val_func = res
 
@@ -89,7 +89,7 @@ function bellman_retiree(prim::primitives, res::results_trans, t::Int64, age::In
 end
 
 # Bellman function for workers
-function bellman_worker(prim::primitives, res::results_trans, t::Int64, age::Int64, ugrid_work::Array{Float64,4})
+function bellman_worker(prim::primitives, res::TransitionResults, t::Int64, age::Int64, ugrid_work::Array{Float64,4})
     @unpack N, R, σ, β, π, γ, e, z, a_grid, na, T, t_noss, θ  = prim
     @unpack w, r, b, pol_func, labor, val_func = res
 
@@ -114,7 +114,7 @@ function bellman_worker(prim::primitives, res::results_trans, t::Int64, age::Int
 end
 
 #backward induction protocol
-function backward_induct(prim::primitives, res::results_trans, t::Int64, ugrid_work::Array{Float64,4}, ugrid_ret::Array{Float64,3})
+function backward_induct(prim::primitives, res::TransitionResults, t::Int64, ugrid_work::Array{Float64,4}, ugrid_ret::Array{Float64,3})
     @unpack R, N, T = prim
 
     #loop over all ages
@@ -143,7 +143,7 @@ function AgeDistribution(prim::primitives)
 end
 
 # Generate stationary distribution
-function get_ss_distr(prim::primitives, res::results_trans, initial_distr::Array{Any, 3})
+function get_ss_distr(prim::primitives, res::TransitionResults, initial_distr::Array{Any, 3})
     @unpack π, π0, N, n, na, a_grid, T = prim
     @unpack pol_func = res
 
@@ -167,7 +167,7 @@ function get_ss_distr(prim::primitives, res::results_trans, initial_distr::Array
     res.Γ = distr
 end
 
-function CalcAggregate(prim::primitives, res::results_trans)
+function CalcAggregate(prim::primitives, res::TransitionResults)
      @unpack R, N, e,  T, na, a_grid  = prim
      @unpack Γ, labor, K, L = res
 
@@ -194,7 +194,7 @@ function CalcAggregate(prim::primitives, res::results_trans)
     return K1, L1
 end
 
-function update_prices(prim::primitives, res::results_trans; K0::Array{Float64}, L0::Array{Float64}, μ::Array{Float64})
+function update_prices(prim::primitives, res::TransitionResults; K0::Array{Float64}, L0::Array{Float64}, μ::Array{Float64})
     @unpack α, δ, R, N, n, θ, T, t_noss = prim
     #@unpack K, L  = res
 
@@ -220,20 +220,44 @@ function update_prices(prim::primitives, res::results_trans; K0::Array{Float64},
     return res.w, res.r, res.b, res.θ_path
 end
 
+# Calculate EV
+function CalcEV(prim::primitives, res::TransitionResults, res_old::StationaryResults, μ; al = 0.0, au = 20.0, na = 200, θ = 0.11, z = [3.0, 0.5], γ = 0.42, T = 50, t_noss = 2)
+    @unpack N = prim
 
-### solveModel
-function solveModel(res_old::results, res_new::results; al = 0.0, au = 20.0, na = 200, θ = 0.11, z = [3.0, 0.5], γ = 0.42, T = 1, t_noss = 2, tol = 0.01, iter = 1000, λ = 0.90)
-    prim, res  = Initialize_trans(al, au, na, θ, z, γ, T, t_noss)
+    # Initialize
+    EV = zeros(prim.na, 2, N)
+    EV_age = zeros(N)
+    voters = zeros(N)
+
+    for age = 1:N
+        for z_index = 1:2, a_index = 1:na
+            EV_numerator = res.val_func[1, a_index, z_index, age]
+            EV_denominator = res_old.val_func[a_index, z_index, age]
+            EV[a_index, z_index, age] = (EV_numerator/EV_denominator)^(1/prim.γ*(1-prim.σ)) - 1
+        
+            EV_age[age,1] += EV[a_index, z_index, age] * (res_old.Γ[a_index, z_index, age]/μ[age])
+
+            voters[age,1] += (EV[a_index, z_index, age] >= 0) * (res_old.Γ[a_index, z_index, age]/μ[age])
+        end
+    end
+
+   EV_age, voters
+end
+
+# Solve model
+function solveModel(res_old::StationaryResults, res_new::StationaryResults; al = 0.0, au = 20.0, na = 200, θ = 0.11, z = [3.0, 0.5], γ = 0.42, T = 30, t_noss = 2, tol = 0.005, iter = 1000, λ = 0.5)
+    prim, res = InitializeTrans(al, au, na, θ, z, γ, T, t_noss)
 
     @unpack N, R, σ, β, π, γ, e, z, a_grid, na, T, t_noss, θ = prim
     @unpack labor, pol_func, val_func, K, L, w, r, b, θ_path, Γ = res
 
-
+    # Set end points based on stationary results
     K[1] = res_old.K
     K[T] = res_new.K
     L[1] = res_old.L
     L[T] = res_new.L
 
+    # Set initial transition path for aggregate K and L
     K_step = (K[T] - K[1])/(T-1)
     L_step = (L[T] - L[1])/(T-1)
     for i = 2:T-1
@@ -241,16 +265,12 @@ function solveModel(res_old::results, res_new::results; al = 0.0, au = 20.0, na 
         L[i] = L[i-1] + L_step
     end
 
-    # Initial guesses for capital and labor paths along the transition
-#    println("K = $K, and L = $L\n")
-
-
     # Population shares
     μ = AgeDistribution(prim)
 #    println("mu = $μ")
 
-    # find prices
-    w, r, b, θ_path = update_prices(prim, res; K0 = K, L0 =  L, μ = μ)
+    # Find prices
+    w, r, b, θ_path = update_prices(prim, res; K0 = K, L0 = L, μ = μ)
 
     #fill in the terminal value function, stat distributions, policy functions
     res.val_func[T, :,:,:] = res_new.val_func
@@ -258,61 +278,52 @@ function solveModel(res_old::results, res_new::results; al = 0.0, au = 20.0, na 
     res.labor[T, :,:,:] = res_new.labor
     res.Γ[T,:,:,:] = res_new.Γ
 
-    dif = 100
+    diff = 100
     n_iter = 1
 
     # Solve the agent's problem
-    while (dif > tol && n_iter < iter)
+    while (diff > tol && n_iter < iter)
         println("Iter = $n_iter")
 
-    #    println("Prices are\n wage = $w,\n rate $r, \n and benefits are $b")
-        ugrid_work = utility_grid_work(prim,  res)
-        ugrid_ret = utility_grid_ret(prim,  res)
-    #    println("grids are filled in\n")
+        #println("Prices are\n wage = $w,\n rate $r, \n and benefits are $b")
+        ugrid_work = utility_grid_work(prim, res)
+        ugrid_ret = utility_grid_ret(prim, res)
+        #println("grids are filled in\n")
 
-
-        for t = (T-1):-1:1 ### do not include the last period since it is already known
-    #        println("period t = $t")
-            backward_induct(prim,  res, t, ugrid_work, ugrid_ret)
+        #
+        for t = (T-1):-1:1
+            backward_induct(prim, res, t, ugrid_work, ugrid_ret)
         end
 
         # Find stationary distribution
         get_ss_distr(prim, res, res_old.Γ)
         # Find aggregate variables according to the obtained decision rule and distribution
         K1, L1 = CalcAggregate(prim, res)
-    #    println("K1 = $K1 and\n L1 = $L1")
+        println("K0 = $K and\n L0 = $L")
+        println("K1 = $K1 and\n L1 = $L1")
 
         # Compare
-        max_dif_K = maximum(abs.(K1 .- K))
-        max_dif_L = maximum(abs.(L1 .- L))
-    #    println("Max dif K is $max_dif_K and max dif L is $max_dif_L") # ... K DIFFERENCES $(K1 - K0), L DIFFERENCES $(L1 - L0)\n")
+        max_diff_K = maximum(abs.(K1 .- K))
+        max_diff_L = maximum(abs.(L1 .- L))
+        println("Max diff K is $max_diff_K and max diff L is $max_diff_L") # ... K DIFFERENCES $(K1 - K0), L DIFFERENCES $(L1 - L0)\n")
 
-
-        dif = max_dif_K + max_dif_L
-        println("FINDS DIFFERENCE $dif") # ... K DIFFERENCES $(K1 - K0), L DIFFERENCES $(L1 - L0)\n")
+        diff = max_diff_K + max_diff_L
+        println("FINDS DIFFERENCE $diff") # ... K DIFFERENCES $(K1 - K0), L DIFFERENCES $(L1 - L0)\n")
     #    println("K0 = $K0,\n K1 = $K1, \n L0 = $L0, \n L1 = $L1")
 
         ### We should not change the starting point!
         K1[1] = K[1]
         L1[1] = L[1]
 
-        #for t = 1:T
-        #    if abs(K1[t] - K[t]) > tol
-        #        K[t] = (1-λ)*K[t] + λ*K1[t]
-        #    end
-        #    if abs(L1[t] - L[t]) > tol
-        #        L[t] = (1-λ)*L[t] + λ*L1[t]
-        #    end
-        #end
-        if dif > tol
+        if diff > tol
             K = (1-λ)*K1 + λ*K
             L = (1-λ)*L1 + λ*L
         end
 
-        res.w, res.r, res.b, res.θ_path = update_prices(prim, res;  K0 = K, L0 =  L, μ = μ)
+        res.w, res.r, res.b, res.θ_path = update_prices(prim, res; K0 = K, L0 =  L, μ = μ)
         n_iter += 1
 
-        if dif < tol
+        if diff < tol
             res.K = K1
             res.L = L1
             println("DONE!\n")
@@ -320,7 +331,9 @@ function solveModel(res_old::results, res_new::results; al = 0.0, au = 20.0, na 
         end
     end
 
+    EV_age, voters = CalcEV(prim, res, res_old, μ)
+
     ##############
 
-    return prim, res, K, L     # what we need in order to make graphs
+    return prim, res, K, L, EV_age, voters     # what we need in order to make graphs
 end

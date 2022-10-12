@@ -8,7 +8,6 @@
     *    ps4_figs.jl    creates functions for all graphs, figures, and .tex inputs
 =#
 
-
 #======================================================#
 #       SET UP
 #------------------------------------------------------#
@@ -29,42 +28,32 @@ using Parameters, DataFrames, CSV, Statistics
 
 # import model functions
 include("ps4_init.jl")
-#include("ps4_model.jl")
-include("ps4_model_grids.jl")
+include("ps4_model.jl")
 include("ps4_figures.jl")
 include("ps3_model.jl")
-### Need to think how to add old code
-#======================================================#
 
 
 #======================================================#
 #       RUN MODELS
 #------------------------------------------------------#
 
-### find old and new steady state objects
-res_old = SolveModel(; al = 0.0, au = 20.0, na = 200, θ = 0.11, z = [3.0, 0.5], γ = 0.42, T = 1, t_noss = 2, λ = 0.5, iter = 1000, tol = 0.005)
-res_new = SolveModel(; al = 0.0, au = 20.0, na = 200, θ = 0.0, z = [3.0, 0.5], γ = 0.42, T = 1, t_noss = 2, λ = 0.5, iter = 1000, tol = 0.005)
-
-res_old.Γ
+# find old and new steady state objects
+SS_old = SolveModel()
+SS_new = SolveModel(θ = 0.0)
 
 # exercise 1
-# find transition path
-@time prim, res, K, L = solveModel(res_old, res_new; al = 0.0, au = 20.0, na = 200, θ = 0.11, z = [3.0, 0.5], γ = 0.42, T = 50, t_noss = 2, tol = 0.1, iter = 1000, λ = 0.90)
+@time prim, res, K, L, EV, voters = solveModel(SS_old, SS_new)
 
 # exercise 2
-prim2, res2, K2, L2  = solveModel(res_old, res_new; al = 0.0, au = 20.0, na = 200, θ = 0.11, z = [3.0, 0.5], γ = 0.42, T = 50, t_noss = 21, tol = 0.1, iter = 1000, λ = 0.90)
-
-#======================================================#
+prim2, res2, K2, L2, EV2, voters2 = solveModel(SS_old, SS_new, t_noss = 21)
 
 
 #======================================================#
 #       WRITE AND SAVE GRAPHS
 #------------------------------------------------------#
 
-rPath, wPath, LPath, KPath = graphPath(res; T = 50)
-rPath2, wPath2, LPath2, KPath2 = graphPath(res2, ins2, cf = "2")
+rPath, wPath, LPath, KPath = graphPath(prim, res)
+rPath2, wPath2, LPath2, KPath2 = graphPath(prim2, res2, cf = "2")
 
-EVgraph2 = graphEV(prim, ev)
-EVgraph2 = graphEV(prim, ev2; cf = "")
-
-#======================================================#
+EVgraph = graphEV(prim, EV)
+EVgraph2 = graphEV(prim, EV2, cf = "2")

@@ -35,7 +35,7 @@ default(titlefont = (20, "times"),  # plots
 #       TRANSITION PATH GRAPHS
 #------------------------------------------------------#
 
-function graphPath(prim::primitives, res::results_trans; cf="")
+function graphPath(prim::primitives, res::TransitionResults; cf="")
     @unpack T = prim
     x = 1:T
 
@@ -58,20 +58,13 @@ function graphPath(prim::primitives, res::results_trans; cf="")
     return rPath, wPath, LPath, KPath
 end
 
-
-function graphEV(prim::primitives, ev; cf = "")
+function graphEV(prim::primitives, EV; cf = "")
     @unpack N = prim
 
     x = 1:N
-    tit = "Consumption equivalent variation by age"
-    if cf == "2"
-        tit = tit*", exercise 2"
-    end
-    EVgraph = plot(x, ev, title = tit, xlabel = "age", ylabel = "EV")
+
+    EVgraph = plot(x, EV, title = "Consumption equivalent variation by age", xlabel = "age", ylabel = "EV")
     savefig(joinpath(figpath, "EV"*cf*".png"))
 
     return EVgraph
 end
-
-
-#======================================================#
