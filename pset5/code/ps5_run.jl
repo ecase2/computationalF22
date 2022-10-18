@@ -1,10 +1,10 @@
 #=
     * PROJECT:     COMPUTATIONAL FALL 2022 PSET 5
-    * AUTHORS:     Hanna Han, Emily Case, Anna Lukianova
+    * AUTHORS:     Hanna Han, Anna Lukianova
     * CONTENTS:    THIS FILE RUNS THE ENTIRE PROGRAM.
     * OTHER FILES:
-    *    ps4_init.jl    initializes structs for all models
-    *    ps4_model.jl   creates functions for models
+    *    ps5_model.jl        creates functions for models
+    *    HelpfulFunctions.jl contains helpful functions (written by Philip Coyle)
 =#
 
 #======================================================#
@@ -18,12 +18,11 @@ if pwd() == "C:\\Users\\79267"
     cd("C:\\Users\\79267\\Documents\\UW_PhD\\3rd_year\\computationalF22")
 end
 
-root     = joinpath(pwd(), "pset4")
+root     = joinpath(pwd(), "pset5")
 codepath = joinpath(root, "code")
-figpath  = joinpath(root, "figures")
 
 # import packages used to run the model
-using Parameters, DataFrames, CSV, Statistics
+using Parameters, DataFrames, CSV, Statistics, Interpolations, Random, Distributions, Optim
 
 # import model functions
 include("HelpfulFunctions.jl")

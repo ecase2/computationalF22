@@ -199,7 +199,7 @@ function Bellman(P::Params, G::Grids, S::Shocks, R::Results)
     @unpack cBET, cALPHA, cDEL = P
     @unpack n_k, k_grid, n_eps, eps_grid, eps_h, K_grid, n_K, n_z, z_grid = G
     @unpack u_g, u_b, markov = S
-    @unpack pf_k, pf_v, a0, a1, b0, b1= R
+    @unpack pf_k, pf_v, a0, a1, b0, b1 = R
 
     pf_k_up = zeros(n_k, n_eps, n_K, n_z)
     pf_v_up = zeros(n_k, n_eps, n_K, n_z)
@@ -214,8 +214,10 @@ function Bellman(P::Params, G::Grids, S::Shocks, R::Results)
         for (i_K, K_today) in enumerate(K_grid)
             if i_z == 1
                 K_tomorrow = a0 + a1*log(K_today)
+                L_today = (1-u_g)*eps_h
             elseif i_z == 2
                 K_tomorrow = b0 + b1*log(K_today)
+                L_today = (1-u_b)*eps_h
             end
             K_tomorrow = exp(K_tomorrow)
 
@@ -226,6 +228,7 @@ function Bellman(P::Params, G::Grids, S::Shocks, R::Results)
                 row = i_eps + n_eps*(i_z-1)
 
                 for (i_k, k_today) in enumerate(k_grid)
+                    w_today, r_today = calc_prices(par, z_today, K_today, L_today)
                     budget_today = r_today*k_today + w_today*eps_today + (1.0 - cDEL)*k_today
 
                     # We are defining the continuation value. Notice that we are interpolating over k and K.
