@@ -22,7 +22,7 @@ root     = joinpath(pwd(), "pset5")
 codepath = joinpath(root, "code")
 
 # import packages used to run the model
-using Parameters, DataFrames, CSV, Statistics, Interpolations, Random, Distributions, Optim
+using Parameters, DataFrames, CSV, Statistics, Interpolations, Random, Distributions, Optim, Latexify
 
 # import model functions
 include("HelpfulFunctions.jl")
@@ -30,6 +30,10 @@ include("ps5_model.jl")
 
 
 #======================================================#
-#       RUN MODELS
+#       RUN
 #------------------------------------------------------#
+# Run model
+output = solve_model()
 
+# Produce output table
+write_table(output)

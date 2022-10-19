@@ -106,7 +106,7 @@ mutable struct Results
     b0::Float64
     b1::Float64
 
-    R2::Array{Float64,1}
+    R2::Float64
 end
 
 function draw_shocks(S::Shocks, N::Int64, T::Int64)
@@ -228,7 +228,7 @@ function Bellman(P::Params, G::Grids, S::Shocks, R::Results)
                 row = i_eps + n_eps*(i_z-1)
 
                 for (i_k, k_today) in enumerate(k_grid)
-                    w_today, r_today = calc_prices(par, z_today, K_today, L_today)
+                    w_today, r_today = calc_prices(P, z_today, K_today, L_today)
                     budget_today = r_today*k_today + w_today*eps_today + (1.0 - cDEL)*k_today
 
                     # We are defining the continuation value. Notice that we are interpolating over k and K.
