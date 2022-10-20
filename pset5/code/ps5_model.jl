@@ -56,70 +56,64 @@ function V_iterate(par::Params, grid::Grids, shocks::Shocks, res::Results; iter 
 end
 
 # Simulate aggregate capital path
-function simulate_KPath(par::Params, grid::Grids, res::Results, E::Array{Float64,2}, Z::Array{Float64,1}; K_ss = 11.55, drop_rows = 1000)
-    @unpack N, T = par
+function simulate_KPath(par::Params, grid::Grids, res::Results, E::Array{Float64,2}, Z::Array{Float64,1})
+    @unpack N, T, K_ss = par
     @unpack K_grid, z_grid, k_grid, eps_grid = grid
     @unpack pf_k = res
 
     # Initialize starting values of capital path and the capital matrix using steady state value
-    KMatrix = zeros(N,T)
-    KMatrix[:,1] .= K_ss
+    K_yesterday = K_ss
+    K_today = 0.0
+    k_yesterday  = repeat([K_ss], N)
 
-    KPath = zeros(T)
-    KPath[1] = K_ss
+    K_path = zeros(T,3)
 
-    for t in 2:T
-        z = Z[t]
+    K_path[1,1] = K_ss
+    K_path[1,3] = 1
 
-        for n in 1:N
-            eps = E[n,t]
+    for time in 2:T
+        z_shock = Z[time]   # draw economy/aggregate shocks
 
-            k_z_eps = pf_k[:, Integer(eps), :, Integer(z)]
-            k_interp = interpolate(k_z_eps, BSpline(Linear()))
+        for person_index in 1:N
+            ϵ_shock = E[person_index, time] # draw idiosyncratic shock for person and time
 
-            k_index = get_index(KMatrix[n,t-1], k_grid)
-            K_index = get_index(KPath[t-1], K_grid)
-            
-            KMatrix[n,t] = k_interp[k_index, K_index]
+            pol_z_ϵ = pf_k[:, Integer(ϵ_shock), :, Integer(z_shock)]  # get policy function for z, ϵ
+            k_interp = interpolate(pol_z_ϵ, BSpline(Linear()))            # define interpolation function for k
+
+            i_k = get_index(k_yesterday[person_index], k_grid) # get index of yesterday's capital for person
+            i_K = get_index(K_yesterday, K_grid)               # get index of yesterday's aggregate capital
+
+            k_yesterday[person_index] = k_interp(i_k, i_K)
+            K_today += k_yesterday[person_index]           # add k to aggregate K today
         end
 
-        KPath[t] = sum(KMatrix[:, t])/N  
+        K_yesterday = K_today/N # update aggregate K today (store into array for tomorrow)
+        K_today = 0.0           # reset K today for next time period
+
+        K_path[time, 1] = K_yesterday # store aggregate capital and z state for today
+        K_path[time, 3] = z_shock
+
+        if time > 1 # store the next K corresponding to each K today (useful for regression)
+            K_path[time - 1, 2] = K_yesterday
+        end
     end
 
-    KPath = hcat(KPath, Z)
-    KPath = KPath[drop_rows+1:T, :]
-
-    return KPath
-end
-
-# Create matrix of aggregate K yesterday and aggregate K today
-function reshape_K(K::Array{Float64,2}; K_ss = 11.55)
-    A = zeros(length(K[:,1]))
-
-    A[1] = K_ss
-    for t = 2:length(K[:,1])
-        A[t] = K[t-1]
-    end
-
-    B = hcat(A, K)
-
-    C = B[sortperm(B[:,3]),:]
-
-    return C
+    return K_path
 end
 
 # Estimate regression
-function estimate_reg(res::Results, K::Array{Float64,2})
+function estimate_reg(par::Params, res::Results, K::Array{Float64,2})
+    @unpack T, drop_rows = par
 
-    K = reshape_K(K)
+    K = K[drop_rows:T-1,:]
 
     # Identify regression for good shocks
-    y_a = log.(K[ K[:,3] .== 2.0, 1])
-    x_a = [ones(length(y_a)) log.(K[ K[:,3] .== 2.0, 2])]
+    y_a = log.(K[ K[:,3] .== 1.0, 2])
+    x_a = [ones(length(y_a)) log.(K[ K[:,3] .== 1.0, 1])]
 
     # Identify regression for bad shocks
-    y_b = log.(K[ K[:,3] .== 1.0, 1])
-    x_b = [ones(length(y_b)) log.(K[ K[:,3] .== 1.0, 2])]
+    y_b = log.(K[ K[:,3] .== 2.0, 2])
+    x_b = [ones(length(y_b)) log.(K[ K[:,3] .== 2.0, 1])]
 
     # Find estimates
     beta_a = inv(x_a' * x_a) * x_a' * y_a
@@ -136,7 +130,7 @@ function estimate_reg(res::Results, K::Array{Float64,2})
 end
 
 # Solve model
-function solve_model(; λ = 0.5, iter = 1000, tol = 0.005)    
+function solve_model(; λ = 0.5, iter = 1000, tol = 0.005, tol_R2 = 1.0 - 1e-2)    
     # Initialize
     par, grid, shocks, res = Initialize()
     @unpack pf_k, pf_v = res
@@ -154,7 +148,7 @@ function solve_model(; λ = 0.5, iter = 1000, tol = 0.005)
     n = 1
 
     # Iterate
-    while (diff > tol && n < iter)
+    while (diff > tol || res.R2 < tol_R2)
         println("BEGINNING ITERATION $n")
         n = n+1
 
@@ -165,7 +159,7 @@ function solve_model(; λ = 0.5, iter = 1000, tol = 0.005)
         K = simulate_KPath(par, grid, res, E, Z)
 
         # Estimate regression
-        a0_new, a1_new, b0_new, b1_new = estimate_reg(res, K)
+        a0_new, a1_new, b0_new, b1_new = estimate_reg(par, res, K)
 
         # Calculate difference
         diff = abs(a0_new - a0_old) + abs(a1_new - a1_old) + abs(b0_new - b0_old) + abs(b1_new - b1_old)

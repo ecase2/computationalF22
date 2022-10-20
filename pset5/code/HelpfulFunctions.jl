@@ -17,6 +17,9 @@
     tol_coef::Float64 = 1e-4
     tol_r2::Float64 = 1.0 - 1e-2
     maxit::Int64 = 10000
+
+    K_ss::Float64 = 11.55
+    drop_rows::Float64 = 1000
 end
 
 @with_kw struct Grids
