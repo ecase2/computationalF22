@@ -19,6 +19,7 @@ end
 
 root     = joinpath(pwd(), "pset6")
 codepath = joinpath(root, "code")
+figpath = joinpath(root, "figures")
 
 # import packages used to run the model
 using Parameters, DataFrames

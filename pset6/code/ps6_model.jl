@@ -3,7 +3,7 @@
     AUTHORS:     Hanna Han, Anna Lukianova
     CONTENTS:    This file contains main functions.
 =#
-using Parameters
+
 # Structure of model primitives (unmutable objects)
 @with_kw struct Params
     β::Float64          = 0.8                                   # discount factor
@@ -21,6 +21,7 @@ using Parameters
     cf::Int64           = 10                                     # costs of staying
     ce::Int64           = 5                                      # entry costs
     α::Int64            = 1                                      # EV1 distribution parameter
+    γ_E::Float64        = 0.5772156649                           # Euler constant
 end
 
 mutable struct Results
@@ -72,9 +73,7 @@ function Initialize(; cf::Int64, α::Int64)
     return par, res
 end
 
-
 # Firm's problem for a baseline version
-
 function firms_problem(par::Params, res::Results; price::Float64)
     @unpack s, Ns, F, β, θ, cf = par
     @unpack W, pol_func, labor = res
@@ -83,11 +82,11 @@ function firms_problem(par::Params, res::Results; price::Float64)
     exit = zeros(Ns)
 
     for s_index = 1:Ns
-        n = (1/(θ*price*s[s_index]))^(1/(θ-1))
+        n = (1/(θ*price*s[s_index]))^(1/(θ-1))          # solve firm's static labor problem
         labor[s_index] = n
 
-        prof = price*s[s_index]*(n^θ) - n - price*cf
-        W_future = β*transpose(F[s_index, :])*W
+        prof = price*s[s_index]*(n^θ) - n - price*cf    # calculate profit
+        W_future = β*transpose(F[s_index, :])*W         # calculate firm's continuation value
 
         if W_future < 0
             W_temp[s_index] = prof
@@ -102,8 +101,10 @@ function firms_problem(par::Params, res::Results; price::Float64)
     return W_temp
 end
 
-function v_iterate(par::Params, res::Results; tol::Float64=1e-3, price::Float64 = 0.7)
+# Solve firm's problem (without random shocks)
+function W_iterate(par::Params, res::Results; tol::Float64=1e-3, price::Float64 = 0.7)
     err = 100.0
+
     while err > tol
         W_temp = firms_problem(par, res; price)
         err = maximum(abs.(res.W .- W_temp))
@@ -111,38 +112,39 @@ function v_iterate(par::Params, res::Results; tol::Float64=1e-3, price::Float64 
     end
 end
 
-
 # Firm's problem for a version with shocks
-
 function firms_problem_shocks(par::Params, res::Results; price::Float64 = 0.7)
-    @unpack s, Ns, F, β, θ, cf, α = par
+    @unpack s, Ns, F, β, θ, cf, α, γ_E = par
     @unpack W, pol_func, U0, V0, V1 = res
 
-    U1 = zeros(5)
-    eulercon = 0.5772156649
+    U1 = zeros(Ns)
 
     for s_index = 1:Ns
-        n = (1/(θ*price*s[s_index]))^(1/(θ-1))
-        prof = price*s[s_index]*(n^θ) - n - price*cf
+        n = (1/(θ*price*s[s_index]))^(1/(θ-1))          # solve firm's static labor problem
+        res.labor[s_index] = n
+        
+        prof = price*s[s_index]*(n^θ) - n - price*cf    # calculate profit
+
         V1[s_index] = prof
         V0[s_index] = prof + β*(transpose(U0)*F[s_index, :])
-        U1[s_index] = eulercon/α + 1/α*log(exp(α*V0[s_index]) + exp(α*V1[s_index]))
-        res.labor[s_index] = n
+        U1[s_index] = γ_E/α + 1/α*log(exp(α*V0[s_index]) + exp(α*V1[s_index]))
     end
+
     return U1
 end
 
-function v_iterate_shocks(par::Params, res::Results; tol::Float64 = 1e-3, price::Float64 = 0.7)
+# Solve firm's problem (with random shocks)
+function W_iterate_shocks(par::Params, res::Results; tol::Float64 = 1e-3, price::Float64 = 0.7)
     err = 100.0
-    it = 1
+
     while err > tol
         U_temp = firms_problem_shocks(par, res; price)
         err = maximum(abs.(res.U0 .- U_temp))
         res.U0 = U_temp
-        it = 2
     end
 end
 
+# Compute sigma
 function compute_sigma(par::Params, res::Results)
     @unpack α = par
     @unpack V0, V1, σ = res
@@ -151,7 +153,6 @@ function compute_sigma(par::Params, res::Results)
 
     return σ
 end
-
 
 # Function to compute value of entrants
 function value_entrants(par::Params, res::Results; price::Float64 = 0.7)
@@ -178,9 +179,9 @@ function find_price(par::Params, res::Results; tol = 10e-4)
 
     while (dif > tol)
         if α == 0
-            v_iterate(par, res; price = price)
+            W_iterate(par, res; price = price)
         else
-            v_iterate_shocks(par, res; price = price)
+            W_iterate_shocks(par, res; price = price)
         end
 
         val_entr = value_entrants(par, res; price = price)
@@ -209,7 +210,20 @@ function find_price(par::Params, res::Results; tol = 10e-4)
     res.p = price
 end
 
+# Find stationary distribution
+function find_dist(par::Params, res::Results)
+    @unpack F = par
+    @unpack m_entr = res
 
+    
+
+    for s_index = 1:Ns
+            (1 - res.pol_func[s_index]) .* F[s_index, 1] .* temp_μ +  m_entr .* (1 - res.pol_func[s_index]) .* F[s_index, 1] .* par.v
+    end
+
+end
+
+# Solve model
 function solve_model(; cf::Int64, α::Int64)
     par, res = Initialize(; cf, α)
 
