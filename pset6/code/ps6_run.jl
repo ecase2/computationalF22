@@ -22,10 +22,11 @@ codepath = joinpath(root, "code")
 figpath = joinpath(root, "figures")
 
 # import packages used to run the model
-using Parameters, DataFrames
+using Parameters, DataFrames, Plots, Latexify
 
 # import model functions
 include("ps6_model.jl")
+include("ps6_figures.jl")
 
 
 #======================================================#
@@ -33,25 +34,27 @@ include("ps6_model.jl")
 #------------------------------------------------------#
 # Run model
 
-# Task 1.
-# Baseline
-@time par1, res1 = solve_model(; cf = 10, α = 0)
-#res1.p
-#res1.pol_func
-
-# With shocks. α = 1
-@time par2, res2 = solve_model(; cf = 10, α = 1)
-#res2.p
-#res2.pol_func
-
-# With shocks. α = 2
-@time par3, res3 = solve_model(; cf = 10, α = 2)
-#res3.p
-#res3.pol_func
-
+# Task 1
+@time par1, res1, output1 = solve_model(; cf = 10, α = 0) # Baseline
+@time par2, res2, output2 = solve_model(; cf = 10, α = 1) # With shocks. α = 1
+@time par3, res3, output3 = solve_model(; cf = 10, α = 2) # With shocks. α = 2
 
 # Task 2
-
-
 # Produce output table
-write_table(output)
+write_table(output1, output2, output3)
+
+# Task 3
+# Produce plot
+pol_func1 = res1.pol_func
+pol_func2 = res2.pol_func
+pol_func3 = res3.pol_func
+
+graphExit(par1, pol_func1, pol_func2, pol_func3)
+
+# Task 4
+# Run counterfactual
+@time par1, res1, output1 = solve_model(; cf = 15, α = 0) # Baseline
+@time par2, res2, output2 = solve_model(; cf = 15, α = 1) # With shocks. α = 1
+@time par3, res3, output3 = solve_model(; cf = 15, α = 2) # With shocks. α = 2
+
+write_table(output1, output2, output3; cf = "_counterfactual")
