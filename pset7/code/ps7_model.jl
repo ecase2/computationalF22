@@ -55,6 +55,7 @@ end
 
 # Function to initialize parameters and results structures
 function Initialize(; type::Int64 = 1)
+
     if type == 1 || type == 2
         par = Params(n = 2, type = type)
     elseif type == 3
@@ -246,7 +247,6 @@ function dif_for_gamma(par::Params, res::Results)
     return dif
 
 end
-dif
 
 function gamma(par::Params, res::Results; dif::Array{Float64, 3})
     @unpack T, H, iT, n = par
@@ -294,7 +294,7 @@ function model_data(par::Params, res::Results; b1::Float64, b2::Float64)
     @unpack y_grid, ε_grid = res
 
     y_grid[1, :] .= 0
-    println("b1 = $b1, b2 = $b2")
+#    println("b1 = $b1, b2 = $b2")
     for i = 2:T, j = 1:H
         y_grid[i, j] = b1*y_grid[i-1, j] + b2*ε_grid[i, j]
     end
@@ -310,21 +310,21 @@ function derivatives(par::Params, res::Results; s::Float64 = 0.01)
     res.y_grid = model_data(par,res; b1 = b12, b2 = b22)
 #    println("y_grid = ", res.y_grid[3, 1:10], "\n")
     m_d, m_sim, var_d, var_sim, acov_d, acov_sim = moments(par::Params, res::Results)
-    println("Moments 1: m = $m_sim, var = $var_sim, acov = $m_sim \n")
+#    println("Moments 1: m = $m_sim, var = $var_sim, acov = $m_sim \n")
 
     res.y_grid = model_data(par,res; b1 = b12 - s, b2 = b22)
 #    println("y_grid = ", res.y_grid[3, 1:10], "\n")
     m_d_ρ, m_sim_ρ, var_d_ρ, var_sim_ρ, acov_d_ρ, acov_sim_ρ = moments(par::Params, res::Results)
-    println("Moments 2: m  = $m_sim_ρ, var = $var_d_ρ, acov = $m_sim_ρ \n")
+#    println("Moments 2: m  = $m_sim_ρ, var = $var_d_ρ, acov = $m_sim_ρ \n")
     der_ρ = [-(m_sim - m_sim_ρ)/s, -(var_sim - var_sim_ρ)/s, -(acov_sim - acov_sim_ρ)/s]
-    println("1 der $der_ρ")
+#    println("1 der $der_ρ")
 
     res.y_grid = model_data(par,res; b1 = b12, b2 = b22 - s)
 #    println("y_grid = ", res.y_grid[3, 1:10], "\n")
     m_d_σ, m_sim_σ, var_d_σ, var_sim_σ, acov_d_σ, acov_sim_σ = moments(par::Params, res::Results)
-    println("Moments 3: m = $m_sim_σ, var = $var_sim_σ, acov =  $m_sim_σ \n")
+#    println("Moments 3: m = $m_sim_σ, var = $var_sim_σ, acov =  $m_sim_σ \n")
     der_σ = [-(m_sim - m_sim_σ)/s, -(var_sim - var_sim_σ)/s, -(acov_sim - acov_sim_σ)/s]
-    println("1 der $der_σ")
+#    println("1 der $der_σ")
 
     if type == 1
         der = [der_ρ[1] der_σ[1];
@@ -357,54 +357,19 @@ function J_test(par::Params; J::Float64 = sol2.minimum)
     return T*H/(1+H)*J
 end
 
-
-
-par, res = Initialize(; type = 3)
-res.y = true_data(par, res)
-res.ε_grid = errors_sim(par, res)
-res.W = Diagonal(ones(par.n))
-sol = optimize(J, [0.5, 1.0])
-res.b11, res.b21 = sol.minimizer[1], sol.minimizer[2]
-
-dif = dif_for_gamma(par, res)
-Γ0, Γj = gamma(par, res; dif = dif)
-
-S_hat = S(par, res; Γ0 = Γ0, Γj = Γj)
-
-inv(S_hat)
-
-res.W = inv(S_hat)
-sol2 = optimize(J, [0.5, 1.0])
-sol2.minimum
-res.b12, res.b22 = sol2.minimizer[1], sol2.minimizer[2]
-res.b11, res.b21
-res.W
-
-∇ = derivatives(par, res)
-
-errors = st_errors(par; ∇ = ∇, S_hat = S_hat)
-
-j_st = J_test(par)
-
-
-
 ######## FOR PLOTS
-### function in order to be able to plot things
 function J_func(par::Params, res::Results; ρ::Float64, σ::Float64)
     @unpack T, H, type = par
-    @unpack ε_grid, y_grid, ε, y = res
+    @unpack ε_grid, y_grid, ε, y, W = res
 
     ρ = ρ
     σ = σ
 
-    # not sure about the first element in the simulated matrix
     y_grid[1, :] .= 0
 
     for i = 2:T, j = 1:H
         y_grid[i, j] = ρ*y_grid[i-1, j] + σ*ε_grid[i, j]
     end
-#    println("y_grid = $y_grid\n")
-#    println("ε_grid = $ε_grid")
 
     mean_data, mean_sim, var_data, var_sim, acov_data, acov_sim = moments(par::Params, res::Results)
 
@@ -428,7 +393,7 @@ function J_func(par::Params, res::Results; ρ::Float64, σ::Float64)
 
     end
 
-    return transpose(M_data - M_sim)*(M_data - M_sim)
+    return transpose(M_data - M_sim)*W*(M_data - M_sim)
 end
 
 function plot_J(par::Params, res::Results; ρl::Float64 = 0.35, ρstep::Float64 = 0.05, ρh::Float64 = 0.65, σl::Float64 = 0.8, σstep::Float64 = 0.05,
@@ -457,5 +422,43 @@ function plot_J(par::Params, res::Results; ρl::Float64 = 0.35, ρstep::Float64 
     return x_ax, y_ax, z_ax
 end
 
-x_ax, y_ax, z_ax = plot_J(par, res; ρl = 0.35, ρstep = 0.05, ρh = 0.65, σl = 0.8, σstep = 0.05, σh = 1.2)
-Plots.plot(x_ax, y_ax, z_ax, st=:surface, camera=(-15, 15))
+function solve_model(; type::Int64 = 1)
+    par, res = Initialize(; type)
+    res.y = true_data(par, res) # it is not dependent on the type (case) and will be the same for all types.
+
+    # Task 3. Sumulate errors for simulations.
+    res.ε_grid = errors_sim(par, res) # will be the same for all types
+
+    # Task 4.
+    # (a) Plot and consistent estimate b1 with W = I
+    res.W = Diagonal(ones(par.n))
+
+    # Plot
+    x_ax, y_ax, z_ax = plot_J(par, res; ρl = 0.35, ρstep = 0.05, ρh = 0.65, σl = 0.8, σstep = 0.05, σh = 1.2)
+    Plots.plot(x_ax, y_ax, z_ax, st=:surface, camera=(-15, 15))
+    # add saving option
+
+    # Estimates
+    sol = optimize(J, [0.5, 1.0])
+    res.b11, res.b21 = sol.minimizer[1], sol.minimizer[2]
+
+    # (b) Find W* and efficient estimate b2 with W = W*
+    dif = dif_for_gamma(par, res)
+    Γ0, Γj = gamma(par, res; dif = dif)
+    S_hat = S(par, res; Γ0 = Γ0, Γj = Γj)
+    res.W = inv(S_hat)
+
+    # Estimates
+    sol2 = optimize(J, [0.5, 1.0])
+    res.b12, res.b22 = sol2.minimizer[1], sol2.minimizer[2]
+
+    # (c) Derivatives and standard errors
+    ∇ = derivatives(par, res)
+    errors = st_errors(par; ∇ = ∇, S_hat = S_hat)
+
+    # (d) J-test WRONG
+    j_st = J_test(par)
+
+    return res.b11, res.b12, res.W, ∇, errors, j_st
+
+end
