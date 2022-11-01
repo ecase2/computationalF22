@@ -4,6 +4,8 @@
     CONTENTS:    This file contains main functions.
 =#
 
+using Parameters, DataFrames, Plots, Latexify
+
 # Structure of model primitives (unmutable objects)
 @with_kw struct Params
     β::Float64          = 0.8                                   # discount factor
@@ -66,7 +68,7 @@ function firms_problem(par::Params, res::Results; price::Float64)
         n = max((1/(θ*price*s[s_index]))^(1/(θ-1)),0)          # solve firm's static labor problem
         labor[s_index] = n
 
-        profit = price*s[s_index]*(n^θ) - n - price*cf    # calculate profit
+        profit = price*s[s_index]*(n^θ) - n - price*cf    # calculate profits
         W_future = β*transpose(F[s_index, :])*W         # calculate firm's continuation value
 
         if W_future < 0
@@ -91,11 +93,18 @@ function firms_problem_shocks(par::Params, res::Results; price::Float64 = 0.7)
     exit = zeros(Ns)
 
     for s_index = 1:Ns
-        n = max((1/(θ*price*s[s_index]))^(1/(θ-1)),0)       # solve firm's static labor problem
+        if price > 0
+            n = max((1/(θ*price*s[s_index]))^(1/(θ-1)),0)       # solve firm's static labor problem
+        elseif price <= 0
+            println("price is negative")
+            break
+        #elseif price == 0
+        #    n = 0
+        end
         labor[s_index] = n
-        
-        profit = price*s[s_index]*(n^θ) - n - price*cf      # calculate profit
-        
+
+        profit = price*s[s_index]*(n^θ) - n - price*cf      # calculate profits
+
         V_stay = profit + β*transpose(F[s_index, :])*W      # calculate firm's value if they stay in the market
         V_exit = profit                                     # calculate firm's value if they exit the market
 
@@ -110,7 +119,7 @@ end
 # Solve firm's problem
 function W_iterate(par::Params, res::Results; tol::Float64=1e-3, price::Float64 = 0.7)
     @unpack α = par
-    
+
     err = 100.0
 
     while err > tol
@@ -118,7 +127,7 @@ function W_iterate(par::Params, res::Results; tol::Float64=1e-3, price::Float64 
             W_temp = firms_problem(par, res; price)
         else
             W_temp = firms_problem_shocks(par, res; price)
-        end 
+        end
 
         err = maximum(abs.(res.W .- W_temp))
         res.W = W_temp
@@ -129,7 +138,7 @@ end
 function compute_sigma(par::Params, V_stay::Float64, V_exit::Float64)
     @unpack α = par
 
-    σ = exp.(α*V_stay)./(exp.(α*V_stay) .+ exp.(α*V_exit))
+    σ = exp.(α*V_exit)./(exp.(α*V_stay) .+ exp.(α*V_exit))
 
     return σ
 end
@@ -142,8 +151,9 @@ function value_entrants(par::Params, res::Results)
 end
 
 # Function to find an equilibrium price
-function find_price(par::Params, res::Results; tol = 10e-4)
-    @unpack ce, α = par
+function find_price(par::Params, res::Results; tol::Float64 = 10e-4)
+
+    @unpack ce, α, cf = par
 
     # Guess price
     price = 0.7
@@ -156,42 +166,56 @@ function find_price(par::Params, res::Results; tol = 10e-4)
 
         val_entr = value_entrants(par, res)
         costs = price*ce
+    #    if price > 0.8253099999994298
+    #        println("val_entr = $val_entr and costs = $costs")
+    #    end
+
         dif = abs(val_entr - costs)
 
         if (dif > tol)
             if α == 1
                 step = 0.0001
-            elseif α == 0
+            elseif α == 0 && cf == 10
                 step = 0.001
-            elseif α == 2
+            elseif α == 0 && cf == 15
+                step = 0.00001
+            elseif α == 2 && cf == 10
+                step = 0.00001
+            elseif α == 2 && cf == 15
                 step = 0.00001
             end
 
             if val_entr > costs
                 price = price - step
+                if price < 0
+                    price = 0.0
+                end
             else
                 price = price + step
             end
-            println("updated price = $price and dif = $dif")
-        else
-            println("Equilibrium price = $price")
+        #    println("updated price = $price and dif = $dif")
+        elseif dif < tol && price >= 0
+            res.p = price
+            println("Equilibrium price is found: $price")
             break
+        elseif price < 0
+            println("price is negative, price = $price")
         end
     end
-    res.p = price
 end
 
 # T star operator
-function T_star(par::Params, res::Results)
+function T_star(par::Params, res::Results; mu::Array{Float64})
     @unpack F, Ns, ν = par
 
     temp_dist = zeros(Ns)
 
     for s_today = 1:Ns
         for s_tomorrow = 1:Ns
-            temp_dist[s_tomorrow] += (1 - res.pol_func[s_today]) * F[s_today, s_tomorrow] * res.μ[s_today]
+            temp_dist[s_tomorrow] += (1 - res.pol_func[s_today]) * F[s_today, s_tomorrow] * mu[s_today]
 
             temp_dist[s_tomorrow] += (1 - res.pol_func[s_today]) * F[s_today, s_tomorrow] * ν[s_today] * res.m_entr
+
         end
     end
 
@@ -199,21 +223,35 @@ function T_star(par::Params, res::Results)
 end
 
 # Find stationary distribution
-function find_dist(par::Params, res::Results; iter = 100, tol = 10e-4)
-    @unpack pol_func, μ, m_entr = res
+function find_dist(par::Params, res::Results; iter = 1000, tol = 10e-4)
+    @unpack Ns = par
+    @unpack pol_func, m_entr = res
 
     diff = 10
     n = 1
 
-    while (diff > tol && n < iter)
-        temp_dist = T_star(par, res)
+    mu = ones(Ns)/Ns
 
-        diff = maximum(abs.(temp_dist .- μ))
-        
-        res.μ = temp_dist
-        n = n + 1       
+    while (diff > tol && n < iter)
+        temp_dist = T_star(par, res; mu = mu)
+
+        diff = maximum(abs.(temp_dist .- mu))
+
+        mu = temp_dist
+        n = n + 1
+    #    if n < 150
+    #    end
     end
+    if diff < tol && n <= iter
+        res.μ = mu
+        return mu
+    end
+#    if n > iter
+#        println("Not enough iterations")
+#    end
 end
+
+
 
 # Calculate aggregate labor demand
 function labor_demand(par::Params, res::Results)
@@ -223,6 +261,7 @@ function labor_demand(par::Params, res::Results)
 
     return L
 end
+
 
 # Calculate aggregate labor supply
 function labor_supply(par::Params, res::Results)
@@ -243,7 +282,7 @@ function labor_supply(par::Params, res::Results)
 end
 
 # Find the mass of entrants
-function find_mass(par::Params, res::Results; iter = 100, tol = 10e-4)
+function find_mass(par::Params, res::Results; iter = 1000, tol = 10e-4)
 
     # Initialize
     m_low = par.m_lb
@@ -261,7 +300,7 @@ function find_mass(par::Params, res::Results; iter = 100, tol = 10e-4)
         L_supply = labor_supply(par, res)
 
         diff = abs(L_demand - L_supply)
-        
+
         if (diff > tol)
             if L_demand > L_supply
                 m_high = res.m_entr
@@ -271,14 +310,15 @@ function find_mass(par::Params, res::Results; iter = 100, tol = 10e-4)
 
             res.m_entr = (m_high + m_low)/2
             n += 1
-            println("Difference = ", diff)
-        else 
+        #    println("find_mass: iter = $n, Difference = ", diff, "m_entr = ", res.m_entr)
+        else
             res.L = L_demand
-            println("Found distribution!")
+            println("Mass and distribution are found! iter = $n")
             break
         end
     end
 end
+
 
 # Solve model
 function solve_model(; cf::Int64, α::Int64)
@@ -286,7 +326,7 @@ function solve_model(; cf::Int64, α::Int64)
 
     @unpack α, Ns = par
 
-    # Run functions 
+    # Run functions
     find_price(par, res)
     find_mass(par, res)
 

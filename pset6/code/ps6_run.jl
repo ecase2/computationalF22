@@ -49,12 +49,19 @@ pol_func1 = res1.pol_func
 pol_func2 = res2.pol_func
 pol_func3 = res3.pol_func
 
-graphExit(par1, pol_func1, pol_func2, pol_func3)
+graphExit(par1, pol_func1, pol_func2, pol_func3; plotname = "baseline")
 
 # Task 4
 # Run counterfactual
-@time par1, res1, output1 = solve_model(; cf = 15, α = 0) # Baseline
-@time par2, res2, output2 = solve_model(; cf = 15, α = 1) # With shocks. α = 1
-@time par3, res3, output3 = solve_model(; cf = 15, α = 2) # With shocks. α = 2
+@time par1, res1, output12 = solve_model(; cf = 15, α = 0) # Baseline
+@time par2, res2, output22 = solve_model(; cf = 15, α = 1) # With shocks. α = 1
+@time par3, res3, output32 = solve_model(; cf = 15, α = 2) # With shocks. α = 2
 
-write_table(output1, output2, output3; cf = "_counterfactual")
+pol_func12 = res1.pol_func
+pol_func22 = res2.pol_func
+pol_func32 = res3.pol_func
+
+graphExit(par1, pol_func12, pol_func22, pol_func32; plotname = "counterfactual")
+
+# If we show the results without α = 2
+graphExit_no2(par1, pol_func12, pol_func22; plotname = "counterfactual")
