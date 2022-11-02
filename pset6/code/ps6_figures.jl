@@ -25,13 +25,13 @@ function write_table(output1, output2, output3; cf = "")
     \\begin{table}\\caption{Final model moments}\n\\centering
     \\begin{tabular}{lccc}
     \\toprule
-    \t Moments & Standard & TV1 shock (\$\alpha=1\$) & TV1 shock (\$\alpha=2\$) \\\\
+    \tMoments & Standard & TV1 shock (\$\alpha=1\$) & TV1 shock (\$\alpha=2\$) \\\\
+    \\miderule"
 
-
-    tabfoot = "
-    \\bottomrule
-    \\end{tabular}
-    \\end{table}"
+      tabfoot = "
+      \\bottomrule
+      \\end{tabular}
+      \\end{table}"
 
     # use latexify to create the table part (minus the column names, those are too complicated for latexify)
     tabside   = [ "\tPrice level", "\tMass of incumbents", "\tMass of entrants", "\tMass of exits", "\tAggregate labor", "\tLabor of incumbents", "\tLabor of entrants", "\tFraction of labor in entrants"]

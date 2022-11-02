@@ -62,6 +62,3 @@ pol_func22 = res2.pol_func
 pol_func32 = res3.pol_func
 
 graphExit(par1, pol_func12, pol_func22, pol_func32; plotname = "counterfactual")
-
-# If we show the results without α = 2
-graphExit_no2(par1, pol_func12, pol_func22; plotname = "counterfactual")
