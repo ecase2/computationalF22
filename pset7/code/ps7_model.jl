@@ -360,43 +360,55 @@ function plot_J(par::Params, res::Results; ρl::Float64 = 0.35, ρstep::Float64 
     return x_ax, y_ax, z_ax
 end
 
-function solve_model(; type::Int64 = 1)
-    par, res = Initialize(; type = type)
-    res.y, res.m_data, res.var_data, res.acor_data = true_data(par, res) # it is not dependent on the type (case) and will be the same for all types.
 
-    # Task 3. Sumulate errors for simulations.
-    res.ε_grid = errors_sim(par, res) # will be the same for all types
+function bootstrap(par::Params, res::Results; N::Int64 = 1000)
+    # N is number of simulations
+        @unpack T, H, σ0, y0, ρ0 = par
+        @unpack b11, b21 = res
 
-    # Task 4.
-    # (a) Plot and consistent estimate b1 with W = I
-    res.W = Diagonal(ones(par.n))
+        b1 = zeros(N, 2)
+        b2 = zeros(N, 2)
 
-    # Plot
-    x_ax, y_ax, z_ax = plot_J(par, res; ρl = 0.35, ρstep = 0.05, ρh = 0.65, σl = 0.8, σstep = 0.05, σh = 1.2)
-    Plots.plot(x_ax, y_ax, z_ax, st=:surface, camera=(-15, 15))
-    # add saving option
 
-    # Estimates
-    sol = optimize(J, [0.5, 1.0])
-    res.b11, res.b21 = sol.minimizer[1], sol.minimizer[2]
+        for i = 1:N
 
-    # (b) Find W* and efficient estimate b2 with W = W*
-    dif = dif_for_gamma(par, res)
-    Γ0, Γj = gamma(par, res; dif = dif)
-    S_hat = S(par, res; Γ0 = Γ0, Γj = Γj)
-    res.W = inv(S_hat)
 
-    # Estimates
-    sol2 = optimize(J, [0.5, 1.0])
-    res.b12, res.b22 = sol2.minimizer[1], sol2.minimizer[2]
+            # True data
+            distr = Normal(0, σ0)
+            res.ε = rand(distr, T)
 
-    # (c) Derivatives and standard errors
-    ∇ = derivatives(par, res)
-    errors = st_errors(par; ∇ = ∇, S_hat = S_hat)
+            res.y[1] = y0
+            for i = 2:T
+                res.y[i] = ρ0*res.y[i-1] + res.ε[i]
+            end
 
-    # (d) J-test WRONG
-    j_st = J_test(par)
+            res.m_data = mean(res.y)
+            res.var_data = var(res.y)
+            a = autocor(res.y, [1]; demean = true)
+            res.acor_data = a[1]
 
-    return res.b11, res.b21, res.b12, res.b22, res.W, ∇, errors, j_st
+            # Simulated data
 
+            distr1 = Normal(0, 1)
+            res.ε_grid = reshape(rand(distr1, T*H), T, H)
+
+            res.W = Diagonal(ones(par.n))
+            sol = optimize(J, [0.5, 1.0])
+            res.b11, res.b21 = sol.minimizer[1], sol.minimizer[2]
+
+            # (b) Find W* and efficient estimate b2 with W = W*
+            dif = dif_for_gamma(par, res)
+            Γ0, Γj = gamma(par, res; dif = dif)
+            S_hat = S(par, res; Γ0 = Γ0, Γj = Γj)
+            res.W = inv(S_hat)
+
+            # Estimates
+            sol = optimize(J, [0.5, 1.0])
+            b12, b22 = sol.minimizer[1], sol.minimizer[2]
+
+            b1[i, :] = [res.b11, res.b21]
+            b2[i, :] = [b12, b22]
+        end
+
+    return b1, b2
 end

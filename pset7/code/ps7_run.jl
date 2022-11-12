@@ -1,5 +1,5 @@
 #=
-    * PROJECT:     COMPUTATIONAL FALL 2022 PSET 6
+    * PROJECT:     COMPUTATIONAL FALL 2022 PSET 7
     * AUTHORS:     Hanna Han, Anna Lukianova
     * CONTENTS:    THIS FILE RUNS THE ENTIRE PROGRAM.
     * OTHER FILES:
@@ -33,17 +33,22 @@ include("ps7_figures.jl")
 #       RUN
 #------------------------------------------------------#
 # Run model
-type = 3
 
+# Have to run the lines 44 - 103 three times:
+# for type = 1 (use mean and variance)
+# for type = 2 (use variance and autocorrelation)
+# for type = 3 (use mean, variance, autocorrelation)
+
+type = 1
 
 if type == 1
-    cf = "type1"
+    c = "type1"
     name = "type1.png"
 elseif type == 2
-    cf = "type2"
+    c = "type2"
     name = "type2.png"
 elseif type == 3
-    cf = "type3"
+    c = "type3"
     name = "type3.png"
 end
 
@@ -80,14 +85,13 @@ res.b12, res.b22 = sol2.minimizer[1], sol2.minimizer[2]
 ∇ = derivatives(par, res)
 errors = st_errors(par; ∇ = ∇, S_hat = S_hat)
 
-# (d) J-test WRONG
+# (d) J-test
 j_st = J_test(par)
-out[7]
 
 out = [res.b11, res.b21, res.b12, res.b22, res.W, ∇, errors, j_st]
-estimates_table(; output1 = [out[1], out[2]], output2 = [out[3], out[4]], cf = cf)
-errors_table(; output1 = [out[3], out[4]], output2 = out[7], cf = cf)
-jacobian_table(; output1 = out[6], cf = cf)
+estimates_table(; output1 = [out[1], out[2]], output2 = [out[3], out[4]], cf = c)
+errors_table(; output1 = [out[3], out[4]], output2 = out[7], cf = c)
+jacobian_table(; output1 = out[6], cf = c)
 
 # save J-tests
 if type == 1
@@ -98,4 +102,9 @@ elseif type == 3
     j3 = out[end]
 end
 
-j_test_table(; output1 = j1, output2 = j2, output3 = j3)
+# Bootstrap part
+par, res = Initialize(; type = 3)
+b1, b2 = bootstrap(par, res; N = 100000)
+
+graph(; x = b2[:, 1], param = "rho")
+graph(; x = b2[:, 2], param = "sigma")
