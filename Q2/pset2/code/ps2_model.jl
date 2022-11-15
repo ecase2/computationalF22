@@ -1,21 +1,8 @@
 #=
-    PROJECT:     COMPUTATIONAL FALL 2022 PSET 8
+    PROJECT:     COMPUTATIONAL FALL 2022 PSET 2 (Q2)
     AUTHORS:     Hanna Han, Anna Lukianova
     CONTENTS:    This file contains main functions.
 =#
-
-if pwd() == "C:\\Users\\79267"
-    cd("C:\\Users\\79267\\Documents\\UW_PhD\\3rd_year\\computationalF22")
-end
-
-root     = joinpath(pwd(), "pset8")
-codepath = joinpath(root, "code")
-
-
-Pkg.add("StatFiles")
-Pkg.add("ForwardDiff")
-using Parameters, Distributions, Random, Optim, PyPlot, Plots, LinearAlgebra, StatFiles, ForwardDiff
-
 
 mutable struct Results
     Λ::Array{Float64, 1}
