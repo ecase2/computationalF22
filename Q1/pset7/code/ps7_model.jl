@@ -3,7 +3,6 @@
     AUTHORS:     Hanna Han, Anna Lukianova
     CONTENTS:    This file contains main functions.
 =#
-using Parameters, Distributions, Random, Optim, PyPlot, Plots, LinearAlgebra, StatsBase
 
 # Structure of model primitives (unmutable objects)
 @with_kw struct Params
@@ -25,7 +24,6 @@ using Parameters, Distributions, Random, Optim, PyPlot, Plots, LinearAlgebra, St
     ### type 3 = ex.6 - use mean, variance and covariance
 
     iT::Int64 = 4
-
 end
 
 mutable struct Results
