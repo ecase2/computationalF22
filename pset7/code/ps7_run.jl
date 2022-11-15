@@ -3,16 +3,14 @@
     * AUTHORS:     Hanna Han, Anna Lukianova
     * CONTENTS:    THIS FILE RUNS THE ENTIRE PROGRAM.
     * OTHER FILES:
-    *    ps6_model.jl        creates functions for models
+    *   ps7_model.jl        creates functions for models
+    *   ps7_figures.jl      creates figures and plots
 =#
 
 #======================================================#
 #       SET UP
 #------------------------------------------------------#
-
 # define directory paths
-#   NOTE: in visual studio code, make sure you have the computationalF22 folder opened, so that
-#   pwd() automatically returns the file path to that folder
 if pwd() == "C:\\Users\\79267"
     cd("C:\\Users\\79267\\Documents\\UW_PhD\\3rd_year\\computationalF22")
 end
@@ -55,7 +53,7 @@ end
 par, res = Initialize(; type = type)
 res.y, res.m_data, res.var_data, res.acor_data = true_data(par, res) # it is not dependent on the type (case) and will be the same for all types.
 
-# Task 3. Sumulate errors for simulations.
+# Task 3. Simulate errors for simulations.
 res.ε_grid = errors_sim(par, res) # will be the same for all types
 
 # Task 4.
