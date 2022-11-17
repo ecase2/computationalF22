@@ -1,5 +1,5 @@
 #=
-    * PROJECT:     COMPUTATIONAL FALL 2022 PSET 9
+    * PROJECT:     COMPUTATIONAL FALL 2022 PSET 2 (Q2)
     * AUTHORS:     Hanna Han and Anna Lukianova
     * CONTENTS:    Creates functions for write up graphs/tables
 =#
