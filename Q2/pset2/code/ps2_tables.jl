@@ -20,13 +20,13 @@ set_default(fmt = "%.3f",           # latexify
 #------------------------------------------------------#
 # Produce Table 1
 # NEED TO WRITE THE FUNCTION TO CREATE A TABLE FOR TASK 4 (comparison table)
-function table_comparison(; output1::Array{Float64}, output2::Array{Float64})
+function table_comparison(; output1::Float64, output2::Float64, output3::Float64, name::String)
      # define the latex table head and foot
     tabhead = "
-    \\begin{table}\\caption{Comparison of the score of the log-likelihood function and numerical derivative}\n\\centering
-    \\begin{tabular}{|c|c|}
+    \\begin{table}\\caption{Predcited values of the log-likelihood computed using 3 approaches}\n\\centering
+    \\begin{tabular}{|c|c|c|}
     \\toprule
-    \t Score & Derivative\\\\
+    \t Quadrature & GHK & Accept/Reject\\\\
     \\miderule"
 
       tabfoot = "
@@ -34,12 +34,9 @@ function table_comparison(; output1::Array{Float64}, output2::Array{Float64})
       \\end{tabular}
       \\end{table}"
     # use latexify to create the table part (minus the column names, those are too complicated for latexify)
-    tabvals   = hcat(output1, output2)
+    tabvals   = hcat(output1, output2, output3)
     temptable = latexify(tabvals, env = :tabular)
 
-    # get rid of latexify's table head and foot, so that we can replace it with our own.
-  #  temptable = temptable[25:end-14]
-
     # put everything together and write the table
-    write(joinpath(tabpath, "ps8_results_score.tex"), tabhead*temptable*tabfoot)
+    write(joinpath(tabpath, name), tabhead*temptable*tabfoot)
 end
