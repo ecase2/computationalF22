@@ -28,15 +28,19 @@ tabpath  = joinpath(root, "tables")
 filename = joinpath(codepath, "Mortgage_performance_data.dta")
 file_weigths_dim1 = joinpath(codepath, "nodes_weights_dim1.csv")
 file_weigths_dim2 = joinpath(codepath, "nodes_weights_dim2.csv")
+file_draws1 = joinpath(codepath, "draws1_ar.csv")
+file_draws2 = joinpath(codepath, "draws2_ar.csv")
+file_draws3 = joinpath(codepath, "draws3_ar.csv")
 
 # import packages used to run the model
 
 # Pkg.add("StatFiles")
-using Parameters, DataFrames, StatFiles, ForwardDiff, Latexify, CSV, Distributions
+using Parameters, DataFrames, StatFiles, ForwardDiff, Latexify, CSV, Distributions, Random, Optim
 
 # import model functions
 include("ps2_model.jl")
 include("ps2_tables.jl")
+
 
 #======================================================#
 #       RUN
@@ -48,9 +52,27 @@ X, Z, T, Y, N, Kx, Kz = prepare_data(; filename)
 
 par = Initialize(; Kx = Kx, Kz = Kz)
 
+# Task 1. Quadrature
 # Read nodes
 nod1, nod21, nod22, w1, w2 = read_nodes(; file_weigths_dim1, file_weigths_dim2)
 
-
 LL_quadr = quadr_LL(par; N = N, nodes1 = nod1, nodes21 = nod21, nodes22 = nod22,
-    w1 = w1, w2 = w2, X = X, Z = Z, T = T)
+    w1 = w1, w2 = w2, X = X, Z = Z, T = T, a0 = par.a0, a1 = par.a1, a2 = par.a2,
+    β = par.β, γ = par.γ, ρ = par.ρ)
+
+# Task 2. GHK
+LL_ghk = ghk_LL(par; X = X, Z = Z, T = T, N = N, R = 100)
+
+# Task 3. Accept/Reject
+LL_AR = Accept_reject(par; X = X, Z = Z, T = T, N = N, R = 100)
+
+# Task 4. Comparison table
+table_comparison(; output1 = LL_quadr, output2 = LL_ghk, output3 = LL_AR, name = "ps2_res.tex")
+
+
+# Task 5.
+
+params0 = [.1,.2,.3,.4,.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5]
+optimum = optimize(loglike, params0, BFGS())
+MLE = optimum.minimum
+println(MLE)
