@@ -65,6 +65,9 @@ function Initialize(; Kx::Int64, Kz::Int64)
 end
 
 
+####################################### Quadrature algorithm ############################33
+
+
 function read_nodes(;file_weigths_dim1::String, file_weigths_dim2::String)
 
     # Nodes and weights for one dimensional integral
@@ -83,15 +86,17 @@ function read_nodes(;file_weigths_dim1::String, file_weigths_dim2::String)
 end
 
 # Transformation of nodes, so that they were for our region (for one individual)
-function transform_nodes(par::Params; nodes1::Vector{Float64}, nodes21::Vector{Float64}, nodes22::Vector{Float64},  X::Vector{Float64}, Z::Vector{Float64})
-    @unpack a0, a1, a2, β, γ, ρ, σ0 = par
+function transform_nodes(par::Params; nodes1::Vector{Float64}, nodes21::Vector{Float64}, nodes22::Vector{Float64},  X::Vector{Float64}, Z::Vector{Float64},
+    a0::Float64, a1::Float64, a2::Float64, β::Vector{Float64}, γ::Vector{Float64}, ρ::Float64)
 
-    b = a0 .+ transpose(β)*X .+ transpose(γ)*Z
+    σ0 = sqrt(1/(1-ρ)^2)
+
+    b = a0 .+ transpose(β)*X .+ γ[1]*Z[1]
     nod1_tr = log.(nodes1) .+ b
     nod21_tr = log.(nodes21) .+ b
 
-    b1 = a1 .+ transpose(β)*X .+ transpose(γ)*Z
-    nod22_tr = log.(nodes22) .+ b
+    b1 = a1 .+ transpose(β)*X .+ γ[2]*Z[2]
+    nod22_tr = log.(nodes22) .+ b1
 
     inv1 = 1 ./ nodes1
     inv21 = 1 ./ nodes21
@@ -101,10 +106,11 @@ function transform_nodes(par::Params; nodes1::Vector{Float64}, nodes21::Vector{F
 end
 
 
-function compute_indiv_prob(par::Params; i::Int64, T::Float64, nodes1::Vector{Float64}, nodes21::Vector{Float64}, nodes22::Vector{Float64}, inv1::Vector{Float64}, inv21::Vector{Float64}, inv22::Vector{Float64},
-    w1::Vector{Float64}, w2::Vector{Float64}, x::Vector{Float64}, z::Vector{Float64})
+function compute_indiv_prob_quadr(par::Params; i::Int64, T::Float64, nodes1::Vector{Float64}, nodes21::Vector{Float64}, nodes22::Vector{Float64}, inv1::Vector{Float64}, inv21::Vector{Float64}, inv22::Vector{Float64},
+    w1::Vector{Float64}, w2::Vector{Float64}, x::Vector{Float64}, z::Vector{Float64}, a0::Float64,
+    a1::Float64, a2::Float64, β::Vector{Float64}, γ::Vector{Float64}, ρ::Float64)
 
-    @unpack a0, a1, a2, β, γ, ρ, σ0 = par
+    σ0 = sqrt(1/(1-ρ)^2)
 
     # i - index stands for individual
     # T - duration 1-4
@@ -112,13 +118,13 @@ function compute_indiv_prob(par::Params; i::Int64, T::Float64, nodes1::Vector{Fl
     dist = Normal(0, 1)
 
     if T == 1.0
-        P = cdf(dist, (-a0 - transpose(x)*β - transpose(z)*γ)/σ0)
+        P = cdf(dist, (-a0 - transpose(x)*β - z[1]*γ[1])/σ0)
     elseif T == 2.0
         n = length(nodes1)
         P = 0
         for j = 1:n
             ϵ0 = nodes1[j]
-            P += cdf(dist, -a1 - transpose(x)*β - transpose(z)*γ - ρ*ϵ0)*pdf(dist, ϵ0/σ0)/σ0*inv1[j]*w1[j]
+            P += cdf(dist, -a1 - transpose(x)*β - z[2]*γ[2] - ρ*ϵ0)*pdf(dist, ϵ0/σ0)/σ0*inv1[j]*w1[j]
         end
     elseif T == 3.0 || T == 4.0
         n = length(nodes21)
@@ -127,9 +133,9 @@ function compute_indiv_prob(par::Params; i::Int64, T::Float64, nodes1::Vector{Fl
             ϵ0 = nodes21[j]
             ϵ1 = nodes22[j]
             if T == 3.0
-                argum = -a2 - transpose(x)*β - transpose(z)*γ - ρ*ϵ1
+                argum = -a2 - transpose(x)*β -  z[3]*γ[3] - ρ*ϵ1
             elseif T == 4.0
-                argum = a2 + transpose(x)*β + transpose(z)*γ - ρ*ϵ1
+                argum = a2 + transpose(x)*β +  z[3]*γ[3] - ρ*ϵ1
             end
             P += cdf(dist, argum)*pdf(dist, ϵ1 - ρ*ϵ0)*pdf(dist, ϵ0/σ0)/σ0*inv21[j]*inv22[j]*w2[j]
         end
@@ -139,9 +145,8 @@ end
 
 
 function quadr_LL(par::Params; N::Int64, nodes1::Vector{Float64}, nodes21::Vector{Float64}, nodes22::Vector{Float64},
-    w1::Vector{Float64}, w2::Vector{Float64}, X::DataFrame, Z::DataFrame, T::Vector{Float64})
-
-    @unpack a0, a1, a2, β, γ, ρ, σ0 = par
+    w1::Vector{Float64}, w2::Vector{Float64}, X::DataFrame, Z::DataFrame, T::Vector{Float64}, a0::Float64,
+    a1::Float64, a2::Float64, β::Vector{Float64}, γ::Vector{Float64}, ρ::Float64)
 
     LL = 0
     P_ind = zeros(N)
@@ -153,15 +158,216 @@ function quadr_LL(par::Params; N::Int64, nodes1::Vector{Float64}, nodes21::Vecto
             # transform the nodes for an individual
             x = [v for v in values(X[i,:])]
             z = [v for v in values(Z[i,:])]
-            nod1_tr, nod21_tr, nod22_tr, inv1, inv21, inv22 = transform_nodes(par; nodes1, nodes21, nodes22, X = x, Z = z)
+            nod1_tr, nod21_tr, nod22_tr, inv1, inv21, inv22 = transform_nodes(par; nodes1, nodes21, nodes22, X = x, Z = z,
+             a0 = a0, a1 = a1, a2 = a2, β = β, γ = γ, ρ = ρ)
 
             # find probability for a given individual
-            p_ind = compute_indiv_prob(par; i=ind, T = dur, nodes1 = nod1_tr, nodes21 = nod21_tr, nodes22 = nod22_tr, inv1 = inv1, inv21 = inv21,
-                inv22 = inv22, w1 = w1, w2 = w2, x =  x, z = z)
+            p_ind = compute_indiv_prob_quadr(par; i=ind, T = dur, nodes1 = nod1_tr, nodes21 = nod21_tr, nodes22 = nod22_tr, inv1 = inv1, inv21 = inv21,
+                inv22 = inv22, w1 = w1, w2 = w2, x =  x, z = z, a0 = a0, a1 = a1, a2 = a2, β = β, γ = γ, ρ = ρ)
             P_ind[i] = p_ind
 
             LL += log(p_ind)
     end
 
     return LL
+end
+
+
+################################### GHK algorithm #############################################333
+
+### NOT SURE :((( NEED TO TRY DOING THE SAME BUT WITH HALTON SEQUENCE
+function compute_indiv_prob_ghk(par::Params; i::Int64, T::Float64, x::Vector{Float64}, z::Vector{Float64}, R::Int64)
+    @unpack a0, a1, a2, β, γ, ρ, σ0 = par
+
+    distN = Normal(0, 1)
+    distU = Uniform(0, 1)
+
+    if T == 1.0
+        P = cdf(distN, (-a0 - transpose(x)*β -  z[1]*γ[1])/σ0)
+    elseif T == 2.0
+
+        draws = rand(distU, R)
+        CDF = cdf(distN, a0 + transpose(x)*β +  z[1]*γ[1])
+        ϵ0_grid = σ0*quantile(distN, draws.*CDF)
+
+        P = 0
+        for j = 1:R
+            ϵ0 = ϵ0_grid[j]
+            P += cdf(distN, -a1 - transpose(x)*β -  z[2]*γ[2] - ρ*ϵ0)*CDF
+        end
+        P = 1/R*P
+
+    elseif T == 3.0 || T == 4.0
+
+        draws0 = rand(distU, R)
+        draws1 = rand(distU, R)
+
+        CDF0 = cdf(distN, a0 + transpose(x)*β +  z[1]*γ[1])
+        ϵ0_grid = σ0*quantile(distN, draws0.*CDF0)
+
+        CDF1 = cdf(distN, a1 .+ transpose(x)*β .+  z[2]*γ[2] .+ ρ*ϵ0_grid)
+        ϵ1_grid = quantile(distN, draws1.*CDF1)
+
+        P = 0
+        for j = 1:R
+            ϵ0 = ϵ0_grid[j]
+            ϵ1 = ϵ1_grid[j]
+            if T == 3.0
+                argum = -a2 - transpose(x)*β -  z[3]*γ[3] - ρ^2*ϵ0 - ρ*ϵ1
+            elseif T == 4.0
+                argum = a2 + transpose(x)*β + z[3]*γ[3] + ρ^2*ϵ0 + ρ*ϵ1
+            end
+            P += cdf(distN, argum)*CDF0*CDF1[j]
+        end
+        P = 1/(R^2)*P
+    end
+    return P
+
+end
+
+
+function ghk_LL(par::Params; X::DataFrame, Z::DataFrame, T::Vector{Float64}, N::Int64, R::Int64)
+    # R is number of draws of random variables for each
+    @unpack a0, a1, a2, β, γ, ρ, σ0 = par
+
+    LL = 0
+    P_ind = zeros(N)
+
+    for i = 1:N
+    #    println("i = $i")
+            ind = i
+
+            # transform the nodes for an individual
+            x = [v for v in values(X[i,:])]
+            z = [v for v in values(Z[i,:])]
+
+            # find probability for a given individual
+            p_ind = compute_indiv_prob_ghk(par;  i = i, T = T[i], x = x, z = z, R = R)
+            P_ind[i] = p_ind
+
+            LL += log(p_ind)
+    end
+
+    return LL
+end
+
+############################## Accept/Reject ############################################
+function Accept_reject(par::Params; X::DataFrame, Z::DataFrame, T::Vector{Float64},  N::Int64, R::Int64)
+
+    @unpack a0, a1, a2, β, γ, ρ, σ0 = par
+
+    distU = Uniform()
+    distN = Normal(0, 1)
+
+    Random.seed!(1234)
+
+    draw0 = rand(distU, R)
+    draw1 = hcat(rand(distU, R), rand(distU, R))
+    draw2 = hcat(rand(distU, R), rand(distU, R), rand(distU, R))
+
+    e0, η1, η2 = zeros(R), zeros(R), zeros(R)
+
+    AR = 0
+    Acc = 0
+    for i = 1:N
+        x = [v for v in values(X[i,:])]
+        z = [v for v in values(Z[i,:])]
+        A = zeros(R)
+        if T[i] == 1.0
+            cutoff = -a0 - transpose(x)*β - z[1]*γ[1]
+            for j = 1:R
+                e0[j] = σ0*quantile.(distN, draw0[j])
+                if e0[j] < cutoff
+                    A[j] = 1
+                end
+            end
+            Acc = mean(A)
+        elseif T[i] == 2.0
+            e0 = σ0*quantile.(distN, draw1[:, 1])
+            η1 = quantile.(distN, draw1[:, 2])
+
+            cutoff0 = a0 + transpose(x)*β + z[1]*γ[1]
+            A0 = zeros(R)
+            A1 = zeros(R)
+            for j = 1:R
+                if e0[j] < cutoff0
+                    A0[j] = 1
+                end
+                cutoff1 = -a1 - transpose(x)*β - z[2]*γ[2] - ρ*e0[j]
+                if η1[j] < cutoff1
+                    A1[j] = 1
+                end
+            end
+            Acc = mean(A0.*A1)
+        elseif T[i] == 3.0 || T == 4.0
+            e0 = σ0*quantile.(distN, draw2[:, 1])
+            η1 = quantile.(distN, draw2[:, 2])
+            η2 = quantile.(distN, draw2[:, 3])
+
+            cutoff0 = a0 + transpose(x)*β + z[1]*γ[1]
+            A0 = zeros(R)
+            A1 = zeros(R)
+            A2 = zeros(R)
+            for j = 1:R
+                cutoff1 = a1 + transpose(x)*β + z[2]*γ[2] - ρ*e0[j]
+
+                if T[i] == 3.0
+                    cutoff2 = -a2 - transpose(x)*β - z[3]*γ[3] - ρ^2*e0[j] - ρ*η1[j]
+                elseif T[i] == 4.0
+                    cutoff2 = a2 + transpose(x)*β + z[3]*γ[3] - ρ^2*e0[j] - ρ*η1[j]
+                end
+
+                if e0[j] < cutoff0
+                    A0[j] = 1
+                end
+                if η1[j] < cutoff1
+                    A1[j] = 1
+                end
+                if η2[j] < cutoff2
+                    A2[j] = 1
+                end
+            end
+            Acc = mean(A0.*A1.*A2)
+        end
+        AR = AR + log(Acc)
+        if AR == -Inf
+            AR = -10e-15
+        end
+    end
+    return AR
+end
+
+
+#################################### For estimation
+function loglike(params)
+
+   a0 = params[1]
+   a1 = params[2]
+   a2 = params[3]
+   β = params[4:19]
+   γ = params[19:21]
+   ρ = params[22]
+
+   dist = Normal(0, 1)
+
+   LL = 0
+   P_ind = zeros(N)
+
+   for i = 1:N
+           ind = i
+           dur = T[i]
+
+           x = [v for v in values(X[i,:])]
+           z = [v for v in values(Z[i,:])]
+           nod1_tr, nod21_tr, nod22_tr, inv1, inv21, inv22 = transform_nodes(par; nodes1 = nod1, nodes21 = nod21, nodes22 = nod22, X = x, Z = z,
+           a0 = a0, a1 = a1, a2 = a2, β = β, γ = γ, ρ = ρ)
+
+           p_ind = compute_indiv_prob_quadr(par; i=ind, T = dur, nodes1 = nod1_tr, nodes21 = nod21_tr, nodes22 = nod22_tr, inv1 = inv1, inv21 = inv21,
+               inv22 = inv22, w1 = w1, w2 = w2, x =  x, z = z, a0 = a0, a1 = a1, a2 = a2, β = β, γ = γ, ρ = ρ)
+
+           P_ind[i] = p_ind
+
+           LL += log(p_ind)
+   end
+   return -LL
 end
