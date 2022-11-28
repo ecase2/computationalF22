@@ -345,13 +345,12 @@ function loglike(params)
    a1 = params[2]
    a2 = params[3]
    β = params[4:19]
-   γ = params[19:21]
-   ρ = params[22]
+   γ = params[20:22]
+   ρ = params[23]
 
    dist = Normal(0, 1)
 
    LL = 0
-   P_ind = zeros(N)
 
    for i = 1:N
            ind = i
@@ -364,8 +363,6 @@ function loglike(params)
 
            p_ind = compute_indiv_prob_quadr(par; i=ind, T = dur, nodes1 = nod1_tr, nodes21 = nod21_tr, nodes22 = nod22_tr, inv1 = inv1, inv21 = inv21,
                inv22 = inv22, w1 = w1, w2 = w2, x =  x, z = z, a0 = a0, a1 = a1, a2 = a2, β = β, γ = γ, ρ = ρ)
-
-           P_ind[i] = p_ind
 
            LL += log(p_ind)
    end
