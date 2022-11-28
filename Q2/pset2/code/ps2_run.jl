@@ -28,13 +28,9 @@ tabpath  = joinpath(root, "tables")
 filename = joinpath(codepath, "Mortgage_performance_data.dta")
 file_weigths_dim1 = joinpath(codepath, "nodes_weights_dim1.csv")
 file_weigths_dim2 = joinpath(codepath, "nodes_weights_dim2.csv")
-file_draws1 = joinpath(codepath, "draws1_ar.csv")
-file_draws2 = joinpath(codepath, "draws2_ar.csv")
-file_draws3 = joinpath(codepath, "draws3_ar.csv")
+
 
 # import packages used to run the model
-
-# Pkg.add("StatFiles")
 using Parameters, DataFrames, StatFiles, ForwardDiff, Latexify, CSV, Distributions, Random, Optim
 
 # import model functions
@@ -71,8 +67,13 @@ table_comparison(; output1 = LL_quadr, output2 = LL_ghk, output3 = LL_AR, name =
 
 
 # Task 5.
+params0 = [0.0, -1.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.3, 0.3, 0.5]
 
-params0 = [.1,.2,.3,.4,.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5]
-optimum = optimize(loglike, params0, BFGS())
-MLE = optimum.minimum
-println(MLE)
+@time a = loglike(params0)
+
+# result = optimize(loglike, params0, Optim.NelderMead(), Optim.Options(iterations=1000,g_tol=1e-3))
+
+result = optimize(loglike, params0, BFGS())
+
+@show estims = Optim.minimizer(result)
+@show min_LL = -Optim.minimum(result)
