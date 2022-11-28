@@ -110,7 +110,7 @@ function compute_indiv_prob_quadr(par::Params; i::Int64, T::Float64, nodes1::Vec
     w1::Vector{Float64}, w2::Vector{Float64}, x::Vector{Float64}, z::Vector{Float64}, a0::Float64,
     a1::Float64, a2::Float64, β::Vector{Float64}, γ::Vector{Float64}, ρ::Float64)
 
-    σ0 = sqrt(1/(1-ρ)^2)
+    σ0 = sqrt(1/(abs(1-ρ)^2))
 
     # i - index stands for individual
     # T - duration 1-4
