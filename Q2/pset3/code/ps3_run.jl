@@ -42,10 +42,35 @@ include("ps3_tables.jl")
 #       RUN
 #------------------------------------------------------#
 # Run model
+function read_data(; file_data::String, file_instruments::String, file_sims::String)
+
+    # Car characteristics
+    df = DataFrame(load(file_data))
+    df = df .+ 0.0
+
+    N = length(df[:, 1])      # number of observations
+    Nx = length(df[1, :])     # number of car characteristics
+
+    # Instruments
+    iv = DataFrame(load(file_instruments))
+    iv = iv .+ 0.0
+    Niv = length(iv[1, :])      # number of observations
+#    Nx = length(df[1, :])     # number of car characteristics
+
+    # Simulations (random coefficients)
+    sim = DataFrame(load(file_sims))
+    sim = sim .+ 0.0
+    Nsim = length(sim[1, :])
+
+    return df, N, Nx, iv, Niv, sim, Nsim
+end
+
+
 
 # Read the data
 df, N, Nx, iv, Niv, sim, Nsim = read_data(; file_data = file_car_char, file_instruments = file_iv, file_sims = file_sim)
 
+######################## TRANSLATE JF's OX CODE "car_demand_ps" INTO JULIA ########################
 # Panel structure
 n = N
 vYear = sort(unique(df[:, "Year"]))
@@ -83,7 +108,6 @@ mIV = hcat(df[:, exo_varlist], mExclIV)
 # Non-linear attributes
 mZ = df[:, "price"]
 
-
 # Pre-compute the row IDs for each market (each market = each year?)
 add1 = [findall(x-> x == vYear[1], df[:, "Year"])]
 aProductID = Vector{Vector{Int64}}(add1)
@@ -94,9 +118,8 @@ for i = 2:T
 end
 
 # Random coefficients
-mEta = sim
+mEta = Matrix(sim)
 Sim = length(mEta[:, 1])
-
 
 # Pre-compute interaction between price and random-coefficient
 # Two dimenional arrays of JxSim matrices (J is number of products in a given year and Sim is number of possible shocks):
@@ -114,3 +137,163 @@ for i = 1:T
     end
     push!(aZ, add)
 end
+
+
+### Let save some objects in the results structure for simplicity - will use these objects in some functions later
+mutable struct Results
+    #aMu::Vector{Float64}
+    vShare::Vector{Float64}
+    aProductID::Vector{Vector{Int64}}
+    aZ::Vector{Matrix{Float64}}
+    mEta::Matrix{Float64}
+    Sim::Int64
+    Share::Float64
+    T::Int64
+end
+
+res = Results(vShare, aProductID, aZ, mEta, Sim, 0, T)
+
+function value(res::Results; vParam::Float64 = 0.6, t::Int64 = 1)
+    @unpack aProductID, Sim, aZ  = res
+
+    rowid = aProductID[t]
+
+    mMu = zeros(length(rowid), Sim) # mu for each product and each shock
+    for j = 1:length(rowid) # for each possible price (product)
+        for i = 1:Sim # for each possible shock
+            mMu[j, i] = vParam*aZ[t][j, i]
+            mMu[j, i] = exp(mMu[j, i])
+        end
+    end
+    return mMu
+end
+
+
+function demand(res::Results; mMu::Matrix, aJac::Matrix{Float64}, aDel::Vector{Float64}, t::Int64, vParam::Float64)
+    @unpack aProductID, Share = res
+
+    aShare = 0
+
+    rowid = aProductID[t] # choose observations (products) for a given year
+
+    eV = exp.(aDel).*mMu
+    mS = eV./(1 .+ sum(eV, dims = 1)) ### NEED TO SUM ELEMENTS FROM COLUMNS (that is for fixed shock!) - choice probability of a given type
+    vShat = mean(mS) # It is σ in our problem set - mean across all simulations
+
+    if mean(aJac) != 0 # mD = Dσ (if we will use the Newton algorithm, need to compute the Jacobian)
+        mD = zeros(length(rowid), length(rowid))
+        for j = 1:length(rowid), k = 1:length(rowid)
+            if j == k
+                mD[j, k] = mean(mS[j, :].*(1 .- mS[j, :]))
+                #println("j = $j, k = $k, mD[j, k] = ", mD[j, k])
+            else
+                mD[j, k] = mean(-mS[j, :].*mS[k, :])
+                #println("j = $j, k = $k, mD[j, k] = ", mD[j, k])
+            end
+        end
+        Jacobian = mD
+    else
+        Jacobian = zeros(2, 2)
+    end
+    #    mD = diag(meanr(mS.*(1-mS)))-setdiagonal(mS*mS'/Sim,0) ### NEED TO FIX THIS LINE
+
+    aShare = vShat ### NEED TO BE CAREFUL
+
+#    return aShare, aJac # need to update res.Share with this value
+    return aShare, Jacobian
+end
+
+#################### The rest is mess
+### NEED TO REWRITE - not everything is clear - doesn't work
+function inverse(res::Results; vDel::Vector{Float64}, eps1::Float64, eps::Float64, iprint::Int64, vParam::Float64,
+    maxit::Int64 = 1000)
+    @unpack T, vShare = res
+
+    vShat = 0.54
+    Jac = zeros(2, 2)
+
+    vIT = 0
+
+    maxT = T
+
+#    if iprint != 0 # WHY DO WE HAVE THIS CONDITION?
+#        maxT = 1
+#    end
+#    parallel for(t=0;t<maxT;t++) #/* Parallelize the inversion across markets. When possible use Nb processors = T (31) */
+#    {
+#        time0=timer();
+    for t = 1:maxT
+        #/* Pre-compute the heterogeneity component of utility (indepedent of delta) */
+        println("t = $t")
+        mu = value(res; vParam, t)
+        rowid = aProductID[t]
+        vIT =  0 # What is vIT?
+        f = 1000
+        err = maximum(abs.(f))
+        println("initial err = $err")
+        tempDel = zeros(length(rowid), maxit)
+        tempDel[:, 1] = vDel[rowid]
+
+        while (err > eps && vIT < maxit)
+            vIT += 1
+            err = maximum(abs.(f))
+    #        println("vIT = $vIT, err = $err")
+                #/* Evalute the demand without the jacobian matrix if the norm is larger than 1 */
+            if (err > eps1)
+                vShat, Jac = demand(res; mMu = mu, aJac = Jac, aDel = tempDel[:, vIT], t = t, vParam = vParam)
+                f = log.(vShare[rowid]) .- log(vShat)  #/* Zero function: Log difference in shares */
+                println("vIT = $vIT, maximum(abs.(f)) = ", maximum(abs.(f)))
+                ## ERROR DOESN'T CHANGE... SOME MISTAKE IN THE CODE>
+            #    println("f = $f")
+            if vIT < length(rowid)-1
+                tempDel[:, vIT + 1] = tempDel[:, vIT] .+ f # /* Contraction mapping step */
+            end
+            #    println("tempDel[rowid] = ", tempDel[rowid])
+                #println("vIt = $vIT, Jac = $Jac")
+
+                        #/* Evalute the demand with the jacobian matrix if the norm is less than 1 */
+            else
+
+                vShat, Jac = demand(res; mMu = mu, aJac = Jac, aDel = tempDel, t = t, vParam = vParam)
+                f = log.(vShare[rowid]) .- log.(vShat)# /* Zero function: Log difference in shares */
+                tempDel[rowid] = tempDel[rowid] .+ inv(Jac/vShat)*f #/* Newton step */
+                println("Jac = $Jac")
+            end
+            err = maximum(abs.(f))
+        #    println("norm = $norm")
+
+        end
+    end
+    return tempDel
+end
+
+# Have to rewrite this function since it will be optimized?
+function gmm_obj(res::Results; vDel::Vector{Float64}, const adFunc, const avScore, const amHessian)
+    @unpacl vDelta0 = res
+    # Invert demand
+    eps1 = 1
+    eps = 10^(-12)
+    inverse(res; vDel = vDelta0, eps1 = eps1, eps = eps, iprint = iprint, vParam = x, maxit = 1000)
+
+    # Quality decomposition */
+    decl vLParam=ivreg(vDelta0,mX,mIV,A);
+    decl vXi=vDelta0-mX*vLParam;
+    # GMM objective function */
+    mG=vXi.*mIV;
+    decl scale=100;
+    decl g=sumc(mG);
+    if(isnan(vDelta0)==1) adFunc[0]=.NaN;
+    else adFunc[0]=double(-g*A*g'/scale);
+    return 1;
+}
+
+
+
+d = inverse(res; vDel = vDelta0, eps1 = 0.0, eps = 10e-12,  iprint = 0, vParam = 0.6, maxit = 100)
+vDelta0 - d
+vDelta0
+
+
+mu = value(res)
+vDelta0
+sh, jac = demand(res; mMu = mu, aJac = [0.0 0.0; 0.0 0.0], vDelta = vDelta0, t = 1, vParam = 0.6)
