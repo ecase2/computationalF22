@@ -173,9 +173,8 @@ function quadr_LL(par::Params; N::Int64, nodes1::Vector{Float64}, nodes21::Vecto
 end
 
 
-################################### GHK algorithm #############################################333
+################################### GHK algorithm #############################################
 
-### NOT SURE :((( NEED TO TRY DOING THE SAME BUT WITH HALTON SEQUENCE
 function compute_indiv_prob_ghk(par::Params; i::Int64, T::Float64, x::Vector{Float64}, z::Vector{Float64}, R::Int64)
     @unpack a0, a1, a2, β, γ, ρ, σ0 = par
 
@@ -363,7 +362,9 @@ function loglike(params)
 
            p_ind = compute_indiv_prob_quadr(par; i=ind, T = dur, nodes1 = nod1_tr, nodes21 = nod21_tr, nodes22 = nod22_tr, inv1 = inv1, inv21 = inv21,
                inv22 = inv22, w1 = w1, w2 = w2, x =  x, z = z, a0 = a0, a1 = a1, a2 = a2, β = β, γ = γ, ρ = ρ)
-
+           if p_ind < 0
+               println("something off")
+           end 
            LL += log(p_ind)
    end
    return -LL
