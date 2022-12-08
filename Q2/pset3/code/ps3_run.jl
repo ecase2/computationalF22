@@ -153,7 +153,7 @@ end
 
 res = Results(vShare, aProductID, aZ, mEta, Sim, 0, T)
 
-function value(res::Results; vParam::Float64 = 0.6, t::Int64 = 1)
+function value(res::Results; vParam::Float64, t::Int64)
     @unpack aProductID, Sim, aZ  = res
 
     rowid = aProductID[t]
@@ -168,104 +168,101 @@ function value(res::Results; vParam::Float64 = 0.6, t::Int64 = 1)
     return mMu
 end
 
+mMu = value(res; vParam = 0.6, t = 1)
 
-function demand(res::Results; mMu::Matrix, aJac::Matrix{Float64}, aDel::Vector{Float64}, t::Int64, vParam::Float64)
+
+function demand_Newton(res::Results; aDel::Vector{Float64}, t::Int64, vParam::Float64)
     @unpack aProductID, Share = res
 
     aShare = 0
 
     rowid = aProductID[t] # choose observations (products) for a given year
 
-    eV = exp.(aDel).*mMu
-    mS = eV./(1 .+ sum(eV, dims = 1)) ### NEED TO SUM ELEMENTS FROM COLUMNS (that is for fixed shock!) - choice probability of a given type
-    vShat = mean(mS) # It is σ in our problem set - mean across all simulations
+    mMu = value(res; vParam = vParam, t = t)
 
-    if mean(aJac) != 0 # mD = Dσ (if we will use the Newton algorithm, need to compute the Jacobian)
-        mD = zeros(length(rowid), length(rowid))
-        for j = 1:length(rowid), k = 1:length(rowid)
-            if j == k
-                mD[j, k] = mean(mS[j, :].*(1 .- mS[j, :]))
-                #println("j = $j, k = $k, mD[j, k] = ", mD[j, k])
-            else
-                mD[j, k] = mean(-mS[j, :].*mS[k, :])
-                #println("j = $j, k = $k, mD[j, k] = ", mD[j, k])
-            end
+    Del = aDel[rowid]
+
+    eV = exp.(Del).*mMu
+    mS = eV./(1 .+ sum(eV, dims = 1))
+    vShat = mean(mS)
+
+    mD = zeros(length(rowid), length(rowid))
+    for j = 1:length(rowid), k = 1:length(rowid)
+        if j == k
+            mD[j, k] = mean(mS[j, :].*(1 .- mS[j, :]))
+        else
+            mD[j, k] = mean(-mS[j, :].*mS[k, :])
         end
-        Jacobian = mD
-    else
-        Jacobian = zeros(2, 2)
     end
-    #    mD = diag(meanr(mS.*(1-mS)))-setdiagonal(mS*mS'/Sim,0) ### NEED TO FIX THIS LINE
+    Jacobian = mD
 
-    aShare = vShat ### NEED TO BE CAREFUL
+    aShare = vShat
 
-#    return aShare, aJac # need to update res.Share with this value
     return aShare, Jacobian
 end
 
-#################### The rest is mess
-### NEED TO REWRITE - not everything is clear - doesn't work
-function inverse(res::Results; vDel::Vector{Float64}, eps1::Float64, eps::Float64, iprint::Int64, vParam::Float64,
-    maxit::Int64 = 1000)
+
+function demand_contraction(res::Results; aDel::Vector{Float64}, t::Int64, vParam::Float64)
+    @unpack aProductID, Share = res
+
+    aShare = 0
+
+    rowid = aProductID[t]
+
+    mMu = value(res; vParam = vParam, t = t)
+    Del = aDel[rowid]
+
+    eV = exp.(Del).*mMu
+    mS = eV./(1 .+ sum(eV, dims = 1))
+    vShat = mean(mS)
+
+    aShare = vShat
+
+    return aShare
+end
+
+function inverse(res::Results; aDel::Vector{Float64}, eps1::Float64, eps::Float64, vParam::Float64, maxit::Int64 = 1000)
     @unpack T, vShare = res
 
     vShat = 0.54
-    Jac = zeros(2, 2)
 
     vIT = 0
 
     maxT = T
 
-#    if iprint != 0 # WHY DO WE HAVE THIS CONDITION?
-#        maxT = 1
-#    end
-#    parallel for(t=0;t<maxT;t++) #/* Parallelize the inversion across markets. When possible use Nb processors = T (31) */
-#    {
-#        time0=timer();
+    temDelta = aDel
+
     for t = 1:maxT
-        #/* Pre-compute the heterogeneity component of utility (indepedent of delta) */
         println("t = $t")
         mu = value(res; vParam, t)
         rowid = aProductID[t]
-        vIT =  0 # What is vIT?
+        vIT =  0
         f = 1000
         err = maximum(abs.(f))
-        println("initial err = $err")
-        tempDel = zeros(length(rowid), maxit)
-        tempDel[:, 1] = vDel[rowid]
 
         while (err > eps && vIT < maxit)
             vIT += 1
-            err = maximum(abs.(f))
-    #        println("vIT = $vIT, err = $err")
-                #/* Evalute the demand without the jacobian matrix if the norm is larger than 1 */
+
             if (err > eps1)
-                vShat, Jac = demand(res; mMu = mu, aJac = Jac, aDel = tempDel[:, vIT], t = t, vParam = vParam)
+                vShat = demand_contraction(res; aDel = temDelta, t = t, vParam = vParam)
                 f = log.(vShare[rowid]) .- log(vShat)  #/* Zero function: Log difference in shares */
-                println("vIT = $vIT, maximum(abs.(f)) = ", maximum(abs.(f)))
-                ## ERROR DOESN'T CHANGE... SOME MISTAKE IN THE CODE>
-            #    println("f = $f")
-            if vIT < length(rowid)-1
-                tempDel[:, vIT + 1] = tempDel[:, vIT] .+ f # /* Contraction mapping step */
-            end
-            #    println("tempDel[rowid] = ", tempDel[rowid])
-                #println("vIt = $vIT, Jac = $Jac")
-
-                        #/* Evalute the demand with the jacobian matrix if the norm is less than 1 */
-            else
-
-                vShat, Jac = demand(res; mMu = mu, aJac = Jac, aDel = tempDel, t = t, vParam = vParam)
+                if vIT < length(rowid)-1
+                    temDelta[rowid] = temDelta[rowid] .+ f # /* Contraction mapping step */
+                end
+            elseif (err <= eps1)
+                vShat, Jac = demand_Newton(res; aDel = temDelta, t = t, vParam = vParam)
                 f = log.(vShare[rowid]) .- log.(vShat)# /* Zero function: Log difference in shares */
-                tempDel[rowid] = tempDel[rowid] .+ inv(Jac/vShat)*f #/* Newton step */
+                temDelta[rowid] = temDelta[rowid] .+ inv(Jac/vShat)*f #/* Newton step */
                 println("Jac = $Jac")
             end
             err = maximum(abs.(f))
-        #    println("norm = $norm")
-
         end
     end
-    return tempDel
+    return temDelta
 end
+
+
+temD = inverse(res; aDel = vDelta0, eps1 = 1.0, eps = 10e-12, vParam = 0.6, maxit = 1000)
 
 # Have to rewrite this function since it will be optimized?
 function gmm_obj(res::Results; vDel::Vector{Float64}, const adFunc, const avScore, const amHessian)
