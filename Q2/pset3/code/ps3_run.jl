@@ -96,4 +96,4 @@ res = Results(vShare, aProdID, aZ, mEta, Sim, 0, T, vDelta0)
 
 ######################################### Main tasks
 # Task 1. Invert the demand function for parameter value λ = 0.6 for the first year in the sample =  1986
-temD = inverse(res;  eps1 = 1.0, eps = 10e-12, vParam = 0.6, maxit = 100, t = 1)
+temD = inverse(res;  eps1 = 1.0, eps = 10e-12, vParam = 0.6, maxit = 1000, t = 1)

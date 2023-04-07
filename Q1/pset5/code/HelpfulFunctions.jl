@@ -19,7 +19,7 @@
     maxit::Int64 = 10000
 
     K_ss::Float64 = 11.55
-    drop_rows::Float64 = 1000
+    drop_rows::Int64 = 1000
 end
 
 @with_kw struct Grids

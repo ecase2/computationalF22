@@ -15,7 +15,7 @@
 #   NOTE: in visual studio code, make sure you have the computationalF22 folder opened, so that
 #   pwd() automatically returns the file path to that folder
 if pwd() == "C:\\Users\\79267"
-    cd("C:\\Users\\79267\\Documents\\UW_PhD\\3rd_year\\computationalF22")
+    cd("C:\\Users\\79267\\Documents\\UW_PhD\\3rd_year\\computationalF22\\Q1")
 end
 
 root     = joinpath(pwd(), "pset5")
